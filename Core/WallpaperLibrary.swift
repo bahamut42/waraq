@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -9,9 +10,16 @@ final class WallpaperLibrary: ObservableObject {
 
     let libraryDir: URL
     let wallpapersDir: URL
+    let thumbnailsDir: URL
     let manifestURL: URL
 
-    static let supportedVideoExtensions: Set<String> = ["mp4", "mov", "m4v"]
+    static let supportedVideoExtensions: Set<String> = [
+        "mp4", "mov", "m4v",
+    ]
+    static let supportedGifExtensions: Set<String> = ["gif"]
+    static var supportedAllExtensions: Set<String> {
+        supportedVideoExtensions.union(supportedGifExtensions)
+    }
 
     static let builtInGradient = Wallpaper(
         id: "com.bahamut.waraq.builtin.gradient",
@@ -29,6 +37,8 @@ final class WallpaperLibrary: ObservableObject {
             .appendingPathComponent("Waraq", isDirectory: true)
         wallpapersDir = libraryDir
             .appendingPathComponent("Wallpapers", isDirectory: true)
+        thumbnailsDir = libraryDir
+            .appendingPathComponent("Thumbnails", isDirectory: true)
         manifestURL = libraryDir
             .appendingPathComponent("library.json")
 
@@ -36,16 +46,25 @@ final class WallpaperLibrary: ObservableObject {
             at: wallpapersDir,
             withIntermediateDirectories: true
         )
+        try? FileManager.default.createDirectory(
+            at: thumbnailsDir,
+            withIntermediateDirectories: true
+        )
 
         load()
         seedBuiltInsIfNeeded()
     }
 
+    // MARK: Import
+
     func importFile(at sourceURL: URL) throws -> Wallpaper {
         let ext = sourceURL.pathExtension.lowercased()
-        guard Self.supportedVideoExtensions.contains(ext) else {
+        guard Self.supportedAllExtensions.contains(ext) else {
             throw WallpaperImportError.unsupportedFormat(ext)
         }
+
+        let kind: Wallpaper.Kind = Self.supportedGifExtensions
+            .contains(ext) ? .gif : .video
 
         let id = UUID().uuidString
         let destFilename = "\(id).\(ext)"
@@ -68,27 +87,65 @@ final class WallpaperLibrary: ObservableObject {
         if name.isEmpty { name = "Untitled" }
 
         let wallpaper = Wallpaper(
-            id: id, name: name, kind: .video,
+            id: id, name: name, kind: kind,
             addedDate: Date(),
             relativePath: destFilename,
             fileSizeBytes: size
         )
         wallpapers.append(wallpaper)
         save()
+        generateThumbnailAsync(for: wallpaper)
         return wallpaper
     }
 
     @discardableResult
-    func importURL(_ urlString: String, name: String) throws -> Wallpaper {
+    func importFolder(at folderURL: URL) -> [Wallpaper] {
+        var imported: [Wallpaper] = []
+        let enumerator = FileManager.default.enumerator(
+            at: folderURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        )
+        while let fileURL = enumerator?.nextObject() as? URL {
+            let ext = fileURL.pathExtension.lowercased()
+            guard Self.supportedAllExtensions.contains(ext) else {
+                continue
+            }
+            if (try? importFile(at: fileURL)) != nil {
+                if let last = wallpapers.last {
+                    imported.append(last)
+                }
+            }
+        }
+        return imported
+    }
+
+    @discardableResult
+    func importGifURL(_ urlString: String, name: String) throws -> Wallpaper {
         let trimmed = urlString.trimmingCharacters(in: .whitespaces)
-        guard URL(string: trimmed) != nil else {
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme,
+              ["http", "https"].contains(scheme.lowercased()) else
+        {
             throw WallpaperImportError.invalidURL(trimmed)
+        }
+        // Light validation: prefer .gif extension or known GIF hosts.
+        let ext = url.pathExtension.lowercased()
+        let host = url.host?.lowercased() ?? ""
+        let likelyGif = ext == "gif" ||
+            host.contains("giphy.com") ||
+            host.contains("tenor.com") ||
+            host.contains("imgur.com")
+        guard likelyGif else {
+            throw WallpaperImportError.invalidURL(
+                "URL must point to a .gif file"
+            )
         }
 
         let wallpaper = Wallpaper(
             id: UUID().uuidString,
             name: name.isEmpty ? trimmed : name,
-            kind: .url,
+            kind: .gifURL,
             addedDate: Date(),
             urlString: trimmed
         )
@@ -98,19 +155,15 @@ final class WallpaperLibrary: ObservableObject {
     }
 
     func remove(_ wallpaper: Wallpaper) {
-        // Animated Gradient can never be removed.
         guard wallpaper.kind != .builtInGradient else { return }
-
         if let rel = wallpaper.relativePath {
             let fileURL = wallpapersDir.appendingPathComponent(rel)
             try? FileManager.default.removeItem(at: fileURL)
         }
+        try? FileManager.default.removeItem(at: thumbnailURL(for: wallpaper))
         wallpapers.removeAll { $0.id == wallpaper.id }
         save()
 
-        // If procedural built-in was removed, note it so reseed
-        // doesn't re-add it automatically. User can use "Restore"
-        // to bring them back explicitly.
         if wallpaper.kind == .procedural,
            let key = wallpaper.proceduralKey
         {
@@ -123,7 +176,6 @@ final class WallpaperLibrary: ObservableObject {
         }
     }
 
-    /// Re-seed any procedural built-ins the user previously deleted.
     func restoreBuiltIns() {
         UserDefaults.standard.removeObject(
             forKey: "removedProceduralKeys"
@@ -140,11 +192,45 @@ final class WallpaperLibrary: ObservableObject {
         return wallpapersDir.appendingPathComponent(rel)
     }
 
+    func thumbnailURL(for wallpaper: Wallpaper) -> URL {
+        thumbnailsDir.appendingPathComponent("\(wallpaper.id).jpg")
+    }
+
+    func hasThumbnail(for wallpaper: Wallpaper) -> Bool {
+        FileManager.default.fileExists(
+            atPath: thumbnailURL(for: wallpaper).path
+        )
+    }
+
     var totalSizeBytes: Int64 {
         wallpapers.compactMap(\.fileSizeBytes).reduce(0, +)
     }
 
-    // Internal
+    // MARK: Thumbnails
+
+    func generateThumbnailAsync(for wallpaper: Wallpaper) {
+        guard wallpaper.kind == .video || wallpaper.kind == .gif,
+              let fileURL = fileURL(for: wallpaper) else { return }
+        let destURL = thumbnailURL(for: wallpaper)
+        Task.detached(priority: .background) {
+            await ThumbnailGenerator.generate(
+                fileURL: fileURL,
+                isGif: wallpaper.kind == .gif,
+                outputURL: destURL
+            )
+            await MainActor.run {
+                self.objectWillChange.send()
+            }
+        }
+    }
+
+    func regenerateAllThumbnails() {
+        for wallpaper in wallpapers where !hasThumbnail(for: wallpaper) {
+            generateThumbnailAsync(for: wallpaper)
+        }
+    }
+
+    // MARK: Internal
 
     private var removedProceduralKeys: Set<String> {
         Set(UserDefaults.standard.array(
@@ -155,7 +241,6 @@ final class WallpaperLibrary: ObservableObject {
     private func seedBuiltInsIfNeeded(force: Bool = false) {
         let existing = Set(wallpapers.map(\.id))
         let removed = removedProceduralKeys
-
         for builtIn in ProceduralFactory.allBuiltIns {
             if existing.contains(builtIn.id) { continue }
             if !force, let key = builtIn.proceduralKey,
@@ -170,15 +255,18 @@ final class WallpaperLibrary: ObservableObject {
 
     private func load() {
         var all: [Wallpaper] = [Self.builtInGradient]
-
         if let data = try? Data(contentsOf: manifestURL),
            let imported = try? JSONDecoder().decode(
                [Wallpaper].self, from: data
            )
         {
             for wallpaper in imported {
+                // Filter out deprecated .url kind (Phase 7 migration)
+                if wallpaper.kind == .url { continue }
                 // Validate file existence for file-backed kinds
-                if wallpaper.kind == .video || wallpaper.kind == .image {
+                if wallpaper.kind == .video || wallpaper.kind == .gif
+                    || wallpaper.kind == .image
+                {
                     if let rel = wallpaper.relativePath {
                         let url = wallpapersDir.appendingPathComponent(rel)
                         if FileManager.default.fileExists(atPath: url.path) {
@@ -191,6 +279,8 @@ final class WallpaperLibrary: ObservableObject {
             }
         }
         wallpapers = all
+        // Kick off thumbnail backfill for any missing thumbnails
+        regenerateAllThumbnails()
     }
 
     private func save() {

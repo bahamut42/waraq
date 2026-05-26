@@ -30,11 +30,15 @@ struct DisplayConfigSheet: View {
     private var showsFitAndVolume: Bool {
         guard let w = selectedWallpaper else { return false }
         switch w.kind {
+        case .video, .gif, .gifURL: return true
+        default: return false
+        }
+    }
+
+    private var showsVolumeAndLoop: Bool {
+        guard let w = selectedWallpaper else { return false }
+        switch w.kind {
         case .video: return true
-        case .url:
-            guard let str = w.urlString,
-                  let url = URL(string: str) else { return false }
-            return WebEngine.isDirectVideo(url)
         default: return false
         }
     }
@@ -158,8 +162,10 @@ struct DisplayConfigSheet: View {
         case .procedural:
             "BUILT-IN · " + (w.proceduralKey?.uppercased() ?? "")
         case .video: "VIDEO"
-        case .url:
-            if let host = w.urlHost { "URL · \(host.uppercased())" } else { "URL" }
+        case .gif: "GIF"
+        case .gifURL:
+            if let host = w.urlHost { "GIF · \(host.uppercased())" } else { "GIF · URL" }
+        case .url: "URL"
         case .image: "IMAGE"
         }
     }
@@ -184,15 +190,15 @@ struct DisplayConfigSheet: View {
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-        case .url:
+        case .gif, .gifURL:
             LinearGradient(
                 colors: [
-                    Color(red: 0.20, green: 0.14, blue: 0.26),
-                    Color(red: 0.10, green: 0.10, blue: 0.18),
+                    Color(red: 0.30, green: 0.20, blue: 0.40),
+                    Color(red: 0.15, green: 0.10, blue: 0.20),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-        case .image:
+        case .url, .image:
             LinearGradient(
                 colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.2)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
@@ -259,49 +265,65 @@ struct DisplayConfigSheet: View {
                 Divider()
             }
 
-            HStack(spacing: 16) {
-                Text("Loop")
-                    .font(.system(size: 13))
-                Spacer()
-                Toggle("", isOn: $settings.loop)
-                    .toggleStyle(.switch).labelsHidden()
-            }
-            .padding(.vertical, 11)
-            .padding(.horizontal, 14)
-
-            Divider()
-
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Muted")
-                        .font(.system(size: 13))
-                    Text("Wallpapers default to muted")
+            if !showsFitAndVolume {
+                HStack(spacing: 12) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    Text("Fit modes apply to video and GIF wallpapers only. Procedural and gradient wallpapers always fill the display.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Toggle("", isOn: $settings.muted)
-                    .toggleStyle(.switch).labelsHidden()
-            }
-            .padding(.vertical, 11)
-            .padding(.horizontal, 14)
-
-            if !settings.muted, showsFitAndVolume {
-                Divider()
-                HStack(spacing: 16) {
-                    Image(systemName: "speaker.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                    Slider(value: $settings.volume, in: 0...1)
-                    Image(systemName: "speaker.wave.3.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                    Text("\(Int(settings.volume * 100))%")
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 36, alignment: .trailing)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 11)
                 .padding(.horizontal, 14)
+            }
+
+            if showsVolumeAndLoop {
+                HStack(spacing: 16) {
+                    Text("Loop")
+                        .font(.system(size: 13))
+                    Spacer()
+                    Toggle("", isOn: $settings.loop)
+                        .toggleStyle(.switch).labelsHidden()
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 14)
+
+                Divider()
+
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Muted")
+                            .font(.system(size: 13))
+                        Text("Wallpapers default to muted")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settings.muted)
+                        .toggleStyle(.switch).labelsHidden()
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 14)
+
+                if !settings.muted {
+                    Divider()
+                    HStack(spacing: 16) {
+                        Image(systemName: "speaker.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        Slider(value: $settings.volume, in: 0...1)
+                        Image(systemName: "speaker.wave.3.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        Text("\(Int(settings.volume * 100))%")
+                            .font(.system(size: 12, weight: .medium))
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                    .padding(.vertical, 11)
+                    .padding(.horizontal, 14)
+                }
             }
         }
         .background(Color.primary.opacity(0.04))

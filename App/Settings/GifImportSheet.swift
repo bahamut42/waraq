@@ -1,6 +1,7 @@
 import SwiftUI
 
-struct URLImportSheet: View {
+/// Sheet for adding a remote GIF URL to the library.
+struct GifImportSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var library = WallpaperLibrary.shared
 
@@ -19,9 +20,9 @@ struct URLImportSheet: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Import from URL")
+            Text("Import GIF from URL")
                 .font(.system(size: 15, weight: .medium))
-            Text("Paste a YouTube, Vimeo, direct video, or web page URL.")
+            Text("Paste a direct GIF URL (ending in .gif, or from Giphy/Tenor/Imgur).")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         }
@@ -36,22 +37,25 @@ struct URLImportSheet: View {
                 Text("URL")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
-                TextField("https://youtu.be/...", text: $urlString)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 12, design: .monospaced))
-                    .onChange(of: urlString) { _, _ in autofillName() }
+                TextField(
+                    "https://media.giphy.com/.../giphy.gif",
+                    text: $urlString
+                )
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 12, design: .monospaced))
+                .onChange(of: urlString) { _, _ in autofillName() }
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Name")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
-                TextField("My wallpaper", text: $name)
+                TextField("My GIF wallpaper", text: $name)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 12))
             }
 
-            if let detected = detectedKind {
+            if let detected = detectedSource {
                 HStack(spacing: 8) {
                     Image(systemName: detected.icon)
                         .foregroundStyle(detected.color)
@@ -79,17 +83,19 @@ struct URLImportSheet: View {
             Button("Add to Library") { addToLibrary() }
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!isValidURL)
+                .disabled(!looksValid)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .background(Color.primary.opacity(0.03))
     }
 
-    private var isValidURL: Bool {
-        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)) else { return false }
-        return url.host != nil &&
-            (url.scheme == "http" || url.scheme == "https")
+    private var looksValid: Bool {
+        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host != nil else { return false }
+        return true
     }
 
     private struct Detected {
@@ -98,57 +104,59 @@ struct URLImportSheet: View {
         let description: String
     }
 
-    private var detectedKind: Detected? {
+    private var detectedSource: Detected? {
         guard let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)),
-              url.host != nil else { return nil }
-        if WebEngine.extractYouTubeID(from: url) != nil {
+              let host = url.host?.lowercased() else { return nil }
+
+        let ext = url.pathExtension.lowercased()
+        if ext == "gif" {
             return Detected(
-                icon: "play.rectangle.fill",
-                color: .red,
-                description: "YouTube · will autoplay, loop, mute"
-            )
-        }
-        if WebEngine.extractVimeoID(from: url) != nil {
-            return Detected(
-                icon: "play.rectangle.fill",
-                color: .blue,
-                description: "Vimeo · will autoplay, loop, mute"
-            )
-        }
-        if WebEngine.isDirectVideo(url) {
-            return Detected(
-                icon: "video.fill",
+                icon: "photo.stack",
                 color: .green,
-                description: "Direct video · streams via AVPlayer"
+                description: "Direct GIF · will stream and animate"
+            )
+        }
+        if host.contains("giphy.com") {
+            return Detected(
+                icon: "photo.stack",
+                color: .pink,
+                description: "Giphy URL · use the direct media link ending in .gif"
+            )
+        }
+        if host.contains("tenor.com") {
+            return Detected(
+                icon: "photo.stack",
+                color: .blue,
+                description: "Tenor URL · use the direct media link ending in .gif"
             )
         }
         return Detected(
-            icon: "globe",
-            color: .blue,
-            description: "Web page · renders in WKWebView"
+            icon: "questionmark.circle",
+            color: .orange,
+            description: "Not recognized as a GIF URL"
         )
     }
 
     private func autofillName() {
         errorText = nil
         if name.isEmpty,
-           let url = URL(string: urlString.trimmingCharacters(in: .whitespaces)),
-           let host = url.host
+           let url = URL(string: urlString.trimmingCharacters(in: .whitespaces))
         {
-            name = host.replacingOccurrences(of: "www.", with: "")
+            let last = url.deletingPathExtension().lastPathComponent
+            if !last.isEmpty, last != "/" {
+                name = last
+            } else if let host = url.host {
+                name = host.replacingOccurrences(of: "www.", with: "")
+            }
         }
     }
 
     private func addToLibrary() {
         let trimmed = urlString.trimmingCharacters(in: .whitespaces)
-        guard URL(string: trimmed) != nil else {
-            errorText = "That doesn't look like a valid URL."
-            return
-        }
         let displayName = name.trimmingCharacters(in: .whitespaces).isEmpty
             ? trimmed : name
         do {
-            _ = try library.importURL(trimmed, name: displayName)
+            _ = try library.importGifURL(trimmed, name: displayName)
             dismiss()
         } catch {
             errorText = error.localizedDescription

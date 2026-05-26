@@ -23,7 +23,7 @@ final class DisplayManager: ObservableObject {
     private var windows: [CGDirectDisplayID: WallpaperWindow] = [:]
     private var videoEngines: [CGDirectDisplayID: VideoEngine] = [:]
     private var gradients: [CGDirectDisplayID: GradientWallpaper] = [:]
-    private var webEngines: [CGDirectDisplayID: WebEngine] = [:]
+    private var gifEngines: [CGDirectDisplayID: GifEngine] = [:]
     private var proceduralViews: [CGDirectDisplayID: NSView] = [:]
 
     private var screenObserver: NSObjectProtocol?
@@ -78,13 +78,13 @@ final class DisplayManager: ObservableObject {
             case .playing:
                 videoEngines[id]?.play()
                 gradients[id]?.setPaused(false)
-                webEngines[id]?.play()
+                gifEngines[id]?.play()
             case .paused, .throttled:
                 // Phase 4 simplification: throttled treated as
                 // paused. Future phases will halve FPS instead.
                 videoEngines[id]?.pause()
                 gradients[id]?.setPaused(true)
-                webEngines[id]?.pause()
+                gifEngines[id]?.pause()
             }
         }
     }
@@ -106,7 +106,7 @@ final class DisplayManager: ObservableObject {
             windows.removeValue(forKey: id)
             videoEngines.removeValue(forKey: id)
             gradients.removeValue(forKey: id)
-            webEngines.removeValue(forKey: id)
+            gifEngines.removeValue(forKey: id)
             proceduralViews.removeValue(forKey: id)
         }
 
@@ -179,30 +179,41 @@ final class DisplayManager: ObservableObject {
                 gradients[id] = gradient
             }
 
-        case .url:
+        case .gif:
+            if let fileURL = library.fileURL(for: wallpaper) {
+                let engine = GifEngine(
+                    source: .localFile(fileURL),
+                    fitMode: settings.fitMode
+                )
+                window.install(view: engine.view)
+                if !isPaused { engine.play() }
+                gifEngines[id] = engine
+            } else {
+                let gradient = GradientWallpaper()
+                window.install(layer: gradient.layer)
+                gradients[id] = gradient
+            }
+
+        case .gifURL:
             if let str = wallpaper.urlString,
                let url = URL(string: str)
             {
-                if WebEngine.isDirectVideo(url) {
-                    let engine = VideoEngine(
-                        videoURL: url,
-                        fitMode: settings.fitMode
-                    )
-                    engine.isMuted = settings.muted || isMuted
-                    engine.volume = Float(settings.volume)
-                    engine.loop = settings.loop
-                    window.install(layer: engine.layer)
-                    if !isPaused { engine.play() }
-                    videoEngines[id] = engine
-                } else {
-                    let web = WebEngine(url: url)
-                    window.install(view: web.view)
-                    if !isPaused { web.play() }
-                    webEngines[id] = web
-                }
+                let engine = GifEngine(
+                    source: .remoteURL(url),
+                    fitMode: settings.fitMode
+                )
+                window.install(view: engine.view)
+                if !isPaused { engine.play() }
+                gifEngines[id] = engine
+            } else {
+                let gradient = GradientWallpaper()
+                window.install(layer: gradient.layer)
+                gradients[id] = gradient
             }
 
-        case .image:
+        case .image, .url:
+            // .url is deprecated and filtered on library load,
+            // but handle gracefully as fallback.
             let gradient = GradientWallpaper()
             window.install(layer: gradient.layer)
             gradients[id] = gradient
@@ -261,7 +272,7 @@ final class DisplayManager: ObservableObject {
         windows.removeValue(forKey: displayID)
         videoEngines.removeValue(forKey: displayID)
         gradients.removeValue(forKey: displayID)
-        webEngines.removeValue(forKey: displayID)
+        gifEngines.removeValue(forKey: displayID)
         proceduralViews.removeValue(forKey: displayID)
     }
 
@@ -304,6 +315,9 @@ final class DisplayManager: ObservableObject {
             engine.volume = Float(settings.volume)
             engine.loop = settings.loop
         }
+        if let engine = gifEngines[displayID] {
+            engine.updateFitMode(settings.fitMode)
+        }
     }
 
     // Playback control
@@ -316,8 +330,8 @@ final class DisplayManager: ObservableObject {
         for gradient in gradients.values {
             gradient.setPaused(isPaused)
         }
-        for web in webEngines.values {
-            isPaused ? web.pause() : web.play()
+        for gif in gifEngines.values {
+            isPaused ? gif.pause() : gif.play()
         }
     }
 

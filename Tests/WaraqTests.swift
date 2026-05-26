@@ -277,29 +277,47 @@ final class WaraqTests: XCTestCase {
     }
 
     @MainActor
-    func testWebEngineExtractsYouTubeID() throws {
-        XCTAssertEqual(
-            try WebEngine.extractYouTubeID(
-                from: XCTUnwrap(URL(string: "https://youtu.be/abc123XYZ"))
-            ),
-            "abc123XYZ"
+    func testWallpaperLibraryImportsGifURL() throws {
+        let library = WallpaperLibrary()
+        let initial = library.wallpapers.count
+        let wallpaper = try library.importGifURL(
+            "https://media.giphy.com/test.gif",
+            name: "Test"
         )
-        XCTAssertEqual(
-            try WebEngine.extractYouTubeID(
-                from: XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc123XYZ"))
-            ),
-            "abc123XYZ"
+        XCTAssertEqual(wallpaper.kind, .gifURL)
+        XCTAssertEqual(library.wallpapers.count, initial + 1)
+        library.remove(wallpaper)
+    }
+
+    @MainActor
+    func testWallpaperLibraryRejectsNonGifURL() {
+        let library = WallpaperLibrary()
+        XCTAssertThrowsError(
+            try library.importGifURL(
+                "https://example.com/page.html",
+                name: "Test"
+            )
         )
     }
 
     @MainActor
-    func testWebEngineDetectsDirectVideo() throws {
-        XCTAssertTrue(try WebEngine.isDirectVideo(
-            XCTUnwrap(URL(string: "https://example.com/movie.mp4"))
-        ))
-        XCTAssertFalse(try WebEngine.isDirectVideo(
-            XCTUnwrap(URL(string: "https://youtu.be/abc"))
-        ))
+    func testGifKindInFileExtensions() {
+        XCTAssertTrue(
+            WallpaperLibrary.supportedAllExtensions.contains("gif")
+        )
+        XCTAssertTrue(
+            WallpaperLibrary.supportedAllExtensions.contains("mp4")
+        )
+    }
+
+    @MainActor
+    func testThumbnailURLDeterministic() {
+        let library = WallpaperLibrary()
+        let w = WallpaperLibrary.builtInGradient
+        let url1 = library.thumbnailURL(for: w)
+        let url2 = library.thumbnailURL(for: w)
+        XCTAssertEqual(url1, url2)
+        XCTAssertTrue(url1.path.hasSuffix("\(w.id).jpg"))
     }
 
     @MainActor

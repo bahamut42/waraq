@@ -14,8 +14,10 @@ struct Wallpaper: Codable, Identifiable, Hashable {
         case builtInGradient
         case procedural
         case video
+        case gif
+        case gifURL
         case image
-        case url
+        case url // DEPRECATED: filtered on load, never spawned
     }
 
     init(

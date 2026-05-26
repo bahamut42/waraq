@@ -10,12 +10,12 @@ struct LibraryPane: View {
     @State private var selectedID: String?
     @State private var importError: String?
     @State private var showingImportError: Bool = false
-    @State private var showingURLImport: Bool = false
+    @State private var showingGifImport: Bool = false
 
     enum TypeFilter: String, CaseIterable {
         case all = "All"
         case video = "Video"
-        case url = "URL"
+        case gif = "GIF"
         case builtin = "Built-in"
     }
 
@@ -43,8 +43,8 @@ struct LibraryPane: View {
             actions: { Button("OK") {} },
             message: { Text(importError ?? "") }
         )
-        .sheet(isPresented: $showingURLImport) {
-            URLImportSheet()
+        .sheet(isPresented: $showingGifImport) {
+            GifImportSheet()
         }
     }
 
@@ -99,7 +99,8 @@ struct LibraryPane: View {
 
             Menu {
                 Button("From files...") { runFileImport() }
-                Button("From URL...") { showingURLImport = true }
+                Button("From folder...") { runFolderImport() }
+                Button("From GIF URL...") { showingGifImport = true }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus")
@@ -187,7 +188,10 @@ struct LibraryPane: View {
         switch typeFilter {
         case .all: break
         case .video: items = items.filter { $0.kind == .video }
-        case .url: items = items.filter { $0.kind == .url }
+        case .gif:
+            items = items.filter {
+                $0.kind == .gif || $0.kind == .gifURL
+            }
         case .builtin:
             items = items.filter {
                 $0.kind == .builtInGradient || $0.kind == .procedural
@@ -222,9 +226,10 @@ struct LibraryPane: View {
             UTType(filenameExtension: "mp4")!,
             UTType(filenameExtension: "mov")!,
             UTType(filenameExtension: "m4v")!,
+            UTType(filenameExtension: "gif")!,
         ]
         panel.title = "Import wallpapers"
-        panel.message = "Select MP4, MOV, or M4V files"
+        panel.message = "Select MP4, MOV, M4V, or GIF files"
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
             do { _ = try library.importFile(at: url) }
@@ -237,11 +242,28 @@ struct LibraryPane: View {
             }
         }
     }
+
+    private func runFolderImport() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.title = "Import from folder"
+        panel.message = "Select a folder. All MP4, MOV, M4V, and GIF files inside will be imported."
+        guard panel.runModal() == .OK,
+              let folderURL = panel.url else { return }
+        let imported = library.importFolder(at: folderURL)
+        if imported.isEmpty {
+            importError = "No video or GIF files found in that folder."
+            showingImportError = true
+        }
+    }
 }
 
 private struct WallpaperCard: View {
     let wallpaper: Wallpaper
     let isSelected: Bool
+    @StateObject private var library = WallpaperLibrary.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -264,10 +286,23 @@ private struct WallpaperCard: View {
         )
     }
 
+    @ViewBuilder
     private var thumbnail: some View {
-        Rectangle()
-            .fill(thumbnailGradient)
-            .aspectRatio(16.0 / 10.0, contentMode: .fit)
+        if library.hasThumbnail(for: wallpaper),
+           let nsImage = NSImage(
+               contentsOf: library.thumbnailURL(for: wallpaper)
+           )
+        {
+            Image(nsImage: nsImage)
+                .resizable()
+                .aspectRatio(16.0 / 10.0, contentMode: .fill)
+                .frame(maxWidth: .infinity)
+                .clipped()
+        } else {
+            Rectangle()
+                .fill(thumbnailGradient)
+                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+        }
     }
 
     private var thumbnailGradient: LinearGradient {
@@ -290,15 +325,15 @@ private struct WallpaperCard: View {
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-        case .url:
+        case .gif, .gifURL:
             LinearGradient(
                 colors: [
-                    Color(red: 0.20, green: 0.14, blue: 0.26),
-                    Color(red: 0.10, green: 0.10, blue: 0.18),
+                    Color(red: 0.30, green: 0.20, blue: 0.40),
+                    Color(red: 0.15, green: 0.10, blue: 0.20),
                 ],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
-        case .image:
+        case .url, .image:
             LinearGradient(
                 colors: [.gray.opacity(0.4), .gray.opacity(0.2)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
@@ -355,7 +390,9 @@ private struct WallpaperCard: View {
         case .builtInGradient: "sparkles"
         case .procedural: "wand.and.stars"
         case .video: "play.fill"
-        case .url: "globe"
+        case .gif: "photo.stack"
+        case .gifURL: "photo.stack"
+        case .url: "questionmark.circle"
         case .image: "photo"
         }
     }
@@ -365,6 +402,8 @@ private struct WallpaperCard: View {
         case .builtInGradient: "BUILT-IN"
         case .procedural: "BUILT-IN"
         case .video: "VIDEO"
+        case .gif: "GIF"
+        case .gifURL: "GIF · URL"
         case .url: "URL"
         case .image: "IMAGE"
         }
@@ -391,7 +430,9 @@ private struct WallpaperCard: View {
         case .builtInGradient: "Lightweight · Cannot be removed"
         case .procedural: "Procedural · Zero MB"
         case .video: wallpaper.fileSizeString ?? "Video"
-        case .url: wallpaper.urlHost ?? "Remote"
+        case .gif: wallpaper.fileSizeString ?? "GIF"
+        case .gifURL: wallpaper.urlHost ?? "Remote GIF"
+        case .url: wallpaper.urlHost ?? "Deprecated URL"
         case .image: wallpaper.fileSizeString ?? "Still image"
         }
     }
