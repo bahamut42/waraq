@@ -1,0 +1,75 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# Xcode build output
+build/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.pins
+Package.resolved.bak
+
+# CocoaPods (not used, kept for safety)
+Pods/
+Podfile.lock
+
+# Carthage (not used, kept for safety)
+Carthage/Build/
+Carthage/Checkouts/
+
+# fastlane (not used, kept for safety)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Sparkle private keys (never commit)
+*.private
+sparkle_private_key
+
+# Signing and notarization secrets
+*.p12
+*.cer
+*.provisionprofile
+AuthKey_*.p8
+.env
+.env.local
+
+# Editor and tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Profiling
+*.trace
+*.xcresult/
+
+# Logs and temp
+*.log
+tmp/
+Waraq.xcodeproj/

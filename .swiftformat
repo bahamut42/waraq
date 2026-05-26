@@ -1,0 +1,35 @@
+# SwiftFormat configuration for Waraq
+
+--swiftversion 5.10
+
+--indent 4
+--tabwidth 4
+--maxwidth 140
+--linebreaks lf
+--commas always
+--trimwhitespace always
+--semicolons never
+--ifdef no-indent
+
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--closingparen balanced
+
+--funcattributes prev-line
+--typeattributes prev-line
+--varattributes same-line
+
+--self remove
+--header strip
+--marktypes never
+--markextensions never
+--patternlet hoist
+--elseposition same-line
+--guardelse same-line
+--stripunusedargs closure-only
+--importgrouping testable-bottom
+--operatorfunc spaced
+--nospaceoperators ..<,...
+
+--exclude .build,.swiftpm,DerivedData,build,Resources

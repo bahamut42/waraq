@@ -1,0 +1,79 @@
+# SwiftLint configuration for Waraq
+
+included:
+  - App
+  - Core
+  - Engines
+  - Library
+  - Screensaver
+  - Tests
+
+excluded:
+  - .build
+  - .swiftpm
+  - DerivedData
+  - build
+  - Scripts
+  - Resources
+
+disabled_rules:
+  - todo
+  - trailing_comma
+  - multiple_closures_with_trailing_closure
+
+opt_in_rules:
+  - closure_spacing
+  - contains_over_first_not_nil
+  - empty_count
+  - empty_string
+  - explicit_init
+  - first_where
+  - last_where
+  - operator_usage_whitespace
+  - prefer_zero_over_explicit_init
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - toggle_bool
+  - unused_declaration
+  - unused_import
+  - vertical_parameter_alignment_on_call
+  - yoda_condition
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_urls: true
+
+file_length:
+  warning: 500
+  error: 800
+
+function_body_length:
+  warning: 60
+  error: 120
+
+type_body_length:
+  warning: 350
+  error: 500
+
+cyclomatic_complexity:
+  warning: 12
+  error: 20
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+    - x
+    - y
+    - z
+    - w
+    - h
+    - dx
+    - dy
+
+nesting:
+  type_level: 2
+
+reporter: "xcode"

@@ -1,0 +1,80 @@
+name: Waraq
+options:
+  bundleIdPrefix: com.bahamut
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  Waraq:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Core
+      - path: Engines
+      - path: Library
+      - path: Resources
+        optional: true
+    info:
+      path: App/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleDisplayName: Waraq
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        NSHumanReadableCopyright: "Copyright (c) 2026 Omar A. Othman. MIT Licensed."
+        NSHighResolutionCapable: true
+        LSMinimumSystemVersion: "14.0"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bahamut.waraq
+        PRODUCT_NAME: Waraq
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_HARDENED_RUNTIME: YES
+        COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  WaraqTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Waraq
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bahamut.waraq.tests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Waraq.app/Contents/MacOS/Waraq"
+
+schemes:
+  Waraq:
+    build:
+      targets:
+        Waraq: all
+        WaraqTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - WaraqTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
