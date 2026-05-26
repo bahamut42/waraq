@@ -444,10 +444,56 @@ final class DisplayManager: ObservableObject {
         }
     }
 
+    /// Fully dismantle the wallpaper window and all of its
+    /// rendering machinery for a given display.
+    ///
+    /// An earlier version called only `orderOut(nil)`, which hides
+    /// the window but does NOT release the SwiftUI hosting view's
+    /// scene or the CALayer hierarchy under it. For desktop-icon-
+    /// level windows hosting SwiftUI TimelineView procedurals, the
+    /// procedural kept rendering visibly on the supposedly-disabled
+    /// display. The teardown below stops decoding, strips the view
+    /// hierarchy, replaces the content view, hides via every
+    /// mechanism, and closes the window so nothing survives into a
+    /// later render pass.
     private func teardownWindow(for displayID: CGDirectDisplayID) {
+        // 1. Pause engines BEFORE tearing down layers, to avoid a
+        //    final frame decode racing with layer destruction.
+        videoEngines[displayID]?.pause()
+        gifEngines[displayID]?.pause()
+
         if let window = windows[displayID] {
+            // 2. Strip the view hierarchy: subviews (NSHostingView
+            //    for SwiftUI procedurals / gif WebViews) first, then
+            //    sublayers (AVPlayerLayer, CAGradientLayer).
+            if let contentView = window.contentView {
+                for subview in contentView.subviews {
+                    subview.removeFromSuperview()
+                }
+                contentView.layer?.sublayers?.forEach {
+                    $0.removeFromSuperlayer()
+                }
+            }
+
+            // 3. Replace contentView with a fresh empty view to
+            //    sever any retained rendering reference path.
+            window.contentView = NSView(frame: .zero)
+
+            // 4. Hide via every available mechanism (multi-Space /
+            //    fullscreen edge cases).
+            window.alphaValue = 0
             window.orderOut(nil)
+            window.setIsVisible(false)
+
+            // 5. Close: removes from NSApp.windows. Safe because
+            //    isReleasedWhenClosed is false on WallpaperWindow;
+            //    our dictionary still holds the reference until the
+            //    removeValue below.
+            window.close()
         }
+
+        // 6. Drop all references; ARC deallocates the window,
+        //    content view, hosting views, layers, and engines.
         windows.removeValue(forKey: displayID)
         videoEngines.removeValue(forKey: displayID)
         gradients.removeValue(forKey: displayID)
@@ -560,6 +606,79 @@ final class DisplayManager: ObservableObject {
 
     func quitApplication() {
         NSApp.terminate(nil)
+    }
+}
+
+@MainActor
+extension DisplayManager {
+    /// Briefly flashes a large numbered label on each connected
+    /// display so the user can identify which Waraq row maps to
+    /// which physical monitor. Numbers show for 3 seconds.
+    func showDisplayIdentification() {
+        let screens = NSScreen.screens
+        var identifierWindows: [NSWindow] = []
+
+        for (index, screen) in screens.enumerated() {
+            let number = index + 1
+            let frame = screen.frame
+
+            let window = NSWindow(
+                contentRect: frame,
+                styleMask: .borderless,
+                backing: .buffered,
+                defer: false,
+                screen: screen
+            )
+            window.level = .screenSaver
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.ignoresMouseEvents = true
+            window.collectionBehavior = [
+                .canJoinAllSpaces, .stationary, .fullScreenAuxiliary,
+            ]
+            window.hasShadow = false
+            window.isReleasedWhenClosed = false
+
+            let container = NSView(frame: NSRect(
+                origin: .zero, size: frame.size
+            ))
+            container.wantsLayer = true
+            container.layer?.backgroundColor = NSColor.black
+                .withAlphaComponent(0.45).cgColor
+
+            let label = NSTextField(labelWithString: "\(number)")
+            label.font = NSFont.systemFont(
+                ofSize: min(frame.width, frame.height) * 0.4,
+                weight: .heavy
+            )
+            label.textColor = .white
+            label.alignment = .center
+            label.isBordered = false
+            label.isBezeled = false
+            label.backgroundColor = .clear
+            label.isEditable = false
+            label.isSelectable = false
+            label.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.centerXAnchor.constraint(
+                    equalTo: container.centerXAnchor
+                ),
+                label.centerYAnchor.constraint(
+                    equalTo: container.centerYAnchor
+                ),
+            ])
+
+            window.contentView = container
+            window.orderFront(nil)
+            identifierWindows.append(window)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            for window in identifierWindows {
+                window.orderOut(nil)
+            }
+        }
     }
 }
 

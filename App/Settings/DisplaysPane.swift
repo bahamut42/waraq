@@ -59,6 +59,18 @@ struct DisplaysPane: View {
                     .tracking(0.5)
                     .foregroundStyle(.secondary)
                 Spacer()
+                Button {
+                    displayManager.showDisplayIdentification()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "1.square")
+                            .font(.system(size: 10))
+                        Text("Show Numbers")
+                            .font(.system(size: 11))
+                    }
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
                 Text("\(displayManager.displays.count) display\(displayManager.displays.count == 1 ? "" : "s")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
