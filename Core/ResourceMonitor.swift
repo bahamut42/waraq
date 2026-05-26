@@ -6,6 +6,8 @@ import Foundation
 /// Polls once per second when started.
 @MainActor
 final class ResourceMonitor: ObservableObject {
+    static let shared = ResourceMonitor()
+
     @Published private(set) var cpuPercent: Double = 0
     @Published private(set) var memoryMB: Double = 0
     @Published private(set) var isRunning: Bool = false

@@ -349,4 +349,78 @@ final class WaraqTests: XCTestCase {
             ["fill", "fit", "stretch", "center", "tile"]
         )
     }
+
+    @MainActor
+    func testDisplayHardwareIDKeyFormat() {
+        let id = DisplayHardwareID(vendor: 0x1, model: 0x2, serial: 0x3)
+        XCTAssertEqual(id.key, "1-2-3")
+    }
+
+    @MainActor
+    func testDisplayProfileRoundtrip() {
+        let hwID = DisplayHardwareID(vendor: 100, model: 200, serial: 300)
+        let profile = DisplayProfile(
+            hardwareID: hwID,
+            lastKnownName: "Studio Display",
+            wallpaperID: "test-id",
+            settings: DisplaySettings(),
+            lastSeen: Date()
+        )
+        DisplayProfileStore.save(profile)
+        let loaded = DisplayProfileStore.profile(for: hwID)
+        XCTAssertNotNil(loaded)
+        XCTAssertEqual(loaded?.lastKnownName, "Studio Display")
+        XCTAssertEqual(loaded?.wallpaperID, "test-id")
+        DisplayProfileStore.delete(hardwareID: hwID)
+        XCTAssertNil(DisplayProfileStore.profile(for: hwID))
+    }
+
+    @MainActor
+    func testDisplayHardwareIDValueInit() {
+        // The value-based init always succeeds (used for synthetic
+        // profiles in tests); the displayID-based init is the one
+        // that returns nil for all-zero hardware IDs.
+        let id = DisplayHardwareID(vendor: 0, model: 0, serial: 0)
+        XCTAssertEqual(id.key, "0-0-0")
+    }
+
+    @MainActor
+    func testWallpaperEngineImporterRejectsUnsupportedType() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "waraq-we-test-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        try FileManager.default.createDirectory(
+            at: tempDir, withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let projectJSON = """
+        { "title": "Test", "type": "scene", "file": "scene.pkg" }
+        """
+        let projectURL = tempDir.appendingPathComponent("project.json")
+        try Data(projectJSON.utf8).write(to: projectURL)
+
+        let archiveURL = tempDir
+            .deletingLastPathComponent()
+            .appendingPathComponent("test-\(UUID().uuidString).we")
+        let zip = Process()
+        zip.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+        zip.arguments = ["-j", archiveURL.path, projectURL.path]
+        try zip.run()
+        zip.waitUntilExit()
+        defer { try? FileManager.default.removeItem(at: archiveURL) }
+
+        XCTAssertThrowsError(
+            try WallpaperEngineImporter.importArchive(at: archiveURL)
+        ) { error in
+            guard case WallpaperEngineImporter.ImportError.unsupportedType =
+                error else
+            {
+                XCTFail("Expected unsupportedType, got \(error)")
+                return
+            }
+        }
+    }
 }

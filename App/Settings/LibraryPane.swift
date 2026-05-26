@@ -101,6 +101,10 @@ struct LibraryPane: View {
                 Button("From files...") { runFileImport() }
                 Button("From folder...") { runFolderImport() }
                 Button("From GIF URL...") { showingGifImport = true }
+                Divider()
+                Button("From Wallpaper Engine (.we)...") {
+                    runWallpaperEngineImport()
+                }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus")
@@ -255,6 +259,29 @@ struct LibraryPane: View {
         let imported = library.importFolder(at: folderURL)
         if imported.isEmpty {
             importError = "No video or GIF files found in that folder."
+            showingImportError = true
+        }
+    }
+
+    private func runWallpaperEngineImport() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.title = "Import Wallpaper Engine wallpaper"
+        panel.message = "Select a .we file from your Wallpaper Engine library."
+        if let weType = UTType(filenameExtension: "we") {
+            panel.allowedContentTypes = [weType]
+        }
+        guard panel.runModal() == .OK,
+              let weURL = panel.url else { return }
+        do {
+            _ = try WallpaperEngineImporter.importArchive(at: weURL)
+        } catch let error as WallpaperEngineImporter.ImportError {
+            importError = error.errorDescription
+            showingImportError = true
+        } catch {
+            importError = error.localizedDescription
             showingImportError = true
         }
     }

@@ -187,6 +187,12 @@ final class WallpaperLibrary: ObservableObject {
         wallpapers.first { $0.id == id }
     }
 
+    func replaceWallpaper(at index: Int, with new: Wallpaper) {
+        guard index >= 0, index < wallpapers.count else { return }
+        wallpapers[index] = new
+        save()
+    }
+
     func fileURL(for wallpaper: Wallpaper) -> URL? {
         guard let rel = wallpaper.relativePath else { return nil }
         return wallpapersDir.appendingPathComponent(rel)

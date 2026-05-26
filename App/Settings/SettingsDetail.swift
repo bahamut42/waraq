@@ -16,23 +16,11 @@ struct SettingsDetail: View {
             case .performance:
                 PerformancePane(isAdvanced: isAdvanced)
             case .wallpapers:
-                PlaceholderPane(
-                    title: "Wallpapers",
-                    phase: "Phase 5",
-                    summary: "Defaults, rotation, scheduling, and transitions."
-                )
+                WallpapersPane()
             case .diagnostics:
-                PlaceholderPane(
-                    title: "Diagnostics",
-                    phase: "Phase 7",
-                    summary: "Logs, on-screen overlay, telemetry, reset."
-                )
+                DiagnosticsPane()
             case .about:
-                PlaceholderPane(
-                    title: "About",
-                    phase: "Phase 7",
-                    summary: "Version, credits, links, license."
-                )
+                AboutPane()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

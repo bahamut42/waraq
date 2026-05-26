@@ -40,7 +40,7 @@ final class DisplayManager: ObservableObject {
     init() {
         library = WallpaperLibrary.shared
         governor = PerformanceGovernor()
-        resourceMonitor = ResourceMonitor()
+        resourceMonitor = ResourceMonitor.shared
 
         syncDisplays()
 
@@ -134,13 +134,56 @@ final class DisplayManager: ObservableObject {
     }
 
     private func spawnWindow(for screen: NSScreen, id: CGDirectDisplayID) {
-        let settings = DisplaySettingsStore.settings(for: id)
+        // Resolve which wallpaper and settings to use, honoring
+        // profile-based restoration for known displays.
+        let settings: DisplaySettings
+        let wallpaper: Wallpaper
+
+        if let hardwareID = DisplayHardwareID(displayID: id) {
+            if let profile = DisplayProfileStore.profile(for: hardwareID) {
+                // Known display: apply saved according to user
+                // preference. "askEachTime" treated as "applyDefault"
+                // in Phase 8 (dialog deferred to Phase 9).
+                let policy = UserDefaults.standard.string(
+                    forKey: "onKnownDisplay"
+                ) ?? "applySaved"
+
+                switch policy {
+                case "applySaved":
+                    settings = profile.settings
+                    if let w = library.wallpaper(forID: profile.wallpaperID) {
+                        wallpaper = w
+                    } else {
+                        wallpaper = library.wallpapers.first
+                            ?? WallpaperLibrary.builtInGradient
+                    }
+                    // Sync into displayID-keyed cache for live updates.
+                    DisplaySettingsStore.save(settings, for: id)
+                    cacheAssignment(wallpaperID: wallpaper.id, displayID: id)
+                default: // applyDefault
+                    settings = DisplaySettingsStore.settings(for: id)
+                    wallpaper = wallpaperToSpawn(for: id)
+                }
+            } else {
+                // New (never-seen) display.
+                let policy = UserDefaults.standard.string(
+                    forKey: "onNewDisplay"
+                ) ?? "applyDefault"
+                _ = policy // Same fallback for both options currently.
+                settings = DisplaySettingsStore.settings(for: id)
+                wallpaper = wallpaperToSpawn(for: id)
+            }
+        } else {
+            // Display has no hardware ID. Fall back to legacy
+            // displayID-keyed storage entirely.
+            settings = DisplaySettingsStore.settings(for: id)
+            wallpaper = wallpaperToSpawn(for: id)
+        }
 
         // Honor per-display enabled flag.
         guard settings.enabled else { return }
 
         let window = WallpaperWindow(for: screen)
-        let wallpaper = wallpaperToSpawn(for: id)
 
         switch wallpaper.kind {
         case .builtInGradient:
@@ -221,6 +264,46 @@ final class DisplayManager: ObservableObject {
 
         window.orderFront(nil)
         windows[id] = window
+
+        // Persist a profile snapshot after spawn (so reconnects
+        // restore the last-applied state).
+        saveProfile(
+            displayID: id,
+            screen: screen,
+            wallpaperID: wallpaper.id,
+            settings: settings
+        )
+    }
+
+    private func cacheAssignment(
+        wallpaperID: String, displayID: CGDirectDisplayID
+    ) {
+        var assignments = UserDefaults.standard.dictionary(
+            forKey: "displayWallpaperAssignments"
+        ) as? [String: String] ?? [:]
+        assignments[String(displayID)] = wallpaperID
+        UserDefaults.standard.set(
+            assignments, forKey: "displayWallpaperAssignments"
+        )
+    }
+
+    private func saveProfile(
+        displayID: CGDirectDisplayID,
+        screen: NSScreen,
+        wallpaperID: String,
+        settings: DisplaySettings
+    ) {
+        guard let hardwareID = DisplayHardwareID(displayID: displayID) else {
+            return
+        }
+        let profile = DisplayProfile(
+            hardwareID: hardwareID,
+            lastKnownName: screen.localizedName,
+            wallpaperID: wallpaperID,
+            settings: settings,
+            lastSeen: Date()
+        )
+        DisplayProfileStore.save(profile)
     }
 
     /// Returns the wallpaper to use for a given display, falling back
@@ -247,17 +330,22 @@ final class DisplayManager: ObservableObject {
         displayID: CGDirectDisplayID,
         wallpaperID: String
     ) {
-        var assignments = UserDefaults.standard.dictionary(
-            forKey: "displayWallpaperAssignments"
-        ) as? [String: String] ?? [:]
-        assignments[String(displayID)] = wallpaperID
-        UserDefaults.standard.set(
-            assignments, forKey: "displayWallpaperAssignments"
-        )
+        cacheAssignment(wallpaperID: wallpaperID, displayID: displayID)
+
+        // Update the saved profile so the "applySaved" restore policy
+        // reflects the user's new choice rather than reverting to the
+        // previously-saved wallpaper.
+        if let hardwareID = DisplayHardwareID(displayID: displayID),
+           var profile = DisplayProfileStore.profile(for: hardwareID)
+        {
+            profile.wallpaperID = wallpaperID
+            profile.lastSeen = Date()
+            DisplayProfileStore.save(profile)
+        }
 
         teardownWindow(for: displayID)
 
-        // Re-spawn.
+        // Re-spawn (spawnWindow re-saves the profile snapshot).
         if let screen = NSScreen.screens.first(where: {
             $0.displayID == displayID
         }) {
@@ -317,6 +405,21 @@ final class DisplayManager: ObservableObject {
         }
         if let engine = gifEngines[displayID] {
             engine.updateFitMode(settings.fitMode)
+        }
+
+        // Update profile snapshot.
+        if let screen = NSScreen.screens.first(
+            where: { $0.displayID == displayID }
+        ) {
+            let assignments = UserDefaults.standard.dictionary(
+                forKey: "displayWallpaperAssignments"
+            ) as? [String: String] ?? [:]
+            let wallpaperID = assignments[String(displayID)]
+                ?? WallpaperLibrary.builtInGradient.id
+            saveProfile(
+                displayID: displayID, screen: screen,
+                wallpaperID: wallpaperID, settings: settings
+            )
         }
     }
 
