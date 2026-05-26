@@ -3,18 +3,20 @@ import AVFoundation
 
 /// AVPlayer-backed wallpaper engine. Loops a video file forever.
 ///
-/// Phase 1 implementation. Performance governor integration arrives
-/// in Phase 3, see docs/design/settings-performance.md.
+/// Phase 1 baseline, Phase 2 exposes mute control.
 final class VideoEngine {
     private let player: AVPlayer
     private let playerItem: AVPlayerItem
     let layer: AVPlayerLayer
 
+    var isMuted: Bool {
+        get { player.isMuted }
+        set { player.isMuted = newValue }
+    }
+
     init(videoURL: URL) {
         playerItem = AVPlayerItem(url: videoURL)
         player = AVPlayer(playerItem: playerItem)
-
-        // Wallpapers should never make sound by default.
         player.isMuted = true
         player.actionAtItemEnd = .none
 

@@ -9,7 +9,7 @@ final class WaraqTests: XCTestCase {
     }
 
     func testWallpaperManifestDecodes() throws {
-        let json = """
+        let json = Data("""
         {
           "schema": 1,
           "id": "com.example.test",
@@ -17,7 +17,7 @@ final class WaraqTests: XCTestCase {
           "type": "video",
           "entry": "content/scene.mp4"
         }
-        """.data(using: .utf8)!
+        """.utf8)
 
         let manifest = try JSONDecoder().decode(
             WallpaperManifest.self, from: json
@@ -29,64 +29,99 @@ final class WaraqTests: XCTestCase {
     @MainActor
     func testWallpaperWindowConfiguration() throws {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else {
-            throw XCTSkip("No screen available in CI environment")
+            throw XCTSkip("No screen available")
         }
 
         let window = WallpaperWindow(for: screen)
 
+        XCTAssertTrue(window.ignoresMouseEvents)
+        XCTAssertFalse(window.canBecomeKey)
+        XCTAssertFalse(window.canBecomeMain)
+        XCTAssertFalse(window.hasShadow)
         XCTAssertTrue(
-            window.ignoresMouseEvents,
-            "Window must be click-through"
-        )
-        XCTAssertFalse(
-            window.canBecomeKey,
-            "Wallpaper window must never become key"
-        )
-        XCTAssertFalse(
-            window.canBecomeMain,
-            "Wallpaper window must never become main"
-        )
-        XCTAssertFalse(
-            window.hasShadow,
-            "Wallpaper window must not cast a shadow"
+            window.collectionBehavior.contains(.canJoinAllSpaces)
         )
         XCTAssertTrue(
-            window.collectionBehavior.contains(.canJoinAllSpaces),
-            "Must be visible across all Spaces"
-        )
-        XCTAssertTrue(
-            window.collectionBehavior.contains(.stationary),
-            "Must not move with Mission Control"
+            window.collectionBehavior.contains(.stationary)
         )
 
         let desktopLevel = Int(CGWindowLevelForKey(.desktopIconWindow))
-        XCTAssertEqual(
-            window.level.rawValue,
-            desktopLevel - 1,
-            "Must sit just below the desktop icon layer"
-        )
+        XCTAssertEqual(window.level.rawValue, desktopLevel - 1)
     }
 
     @MainActor
     func testGradientWallpaperInitializes() {
         let gradient = GradientWallpaper()
         XCTAssertNotNil(gradient.layer)
+        XCTAssertEqual(gradient.layer.colors?.count, 3)
+        XCTAssertNotNil(gradient.layer.animation(forKey: "wave"))
+    }
+
+    @MainActor
+    func testGradientWallpaperPauseAndResume() {
+        let gradient = GradientWallpaper()
+        gradient.setPaused(true)
         XCTAssertEqual(
-            gradient.layer.colors?.count,
-            3,
-            "Gradient should have three color stops"
+            gradient.layer.speed,
+            0,
+            "Layer speed should be 0 when paused"
         )
-        XCTAssertNotNil(
-            gradient.layer.animation(forKey: "wave"),
-            "Gradient should have an active wave animation"
+        gradient.setPaused(false)
+        XCTAssertEqual(
+            gradient.layer.speed,
+            1,
+            "Layer speed should be 1 when resumed"
         )
     }
 
     func testVideoEngineHandlesNonexistentURL() {
-        // AVPlayer accepts any URL at init and surfaces errors later.
-        // Just verify init does not crash.
         let url = URL(fileURLWithPath: "/tmp/does-not-exist.mp4")
         let engine = VideoEngine(videoURL: url)
         XCTAssertNotNil(engine.layer)
+    }
+
+    func testVideoEngineMuteToggle() {
+        let url = URL(fileURLWithPath: "/tmp/does-not-exist.mp4")
+        let engine = VideoEngine(videoURL: url)
+        XCTAssertTrue(engine.isMuted, "Should start muted")
+        engine.isMuted = false
+        XCTAssertFalse(engine.isMuted)
+        engine.isMuted = true
+        XCTAssertTrue(engine.isMuted)
+    }
+
+    @MainActor
+    func testDisplayManagerObservesScreens() {
+        let manager = DisplayManager()
+        // At least one display exists in any normal environment.
+        XCTAssertFalse(
+            manager.displays.isEmpty,
+            "Should detect at least one display"
+        )
+        XCTAssertEqual(
+            manager.displays.count,
+            NSScreen.screens.count,
+            "Display count should match NSScreen.screens"
+        )
+    }
+
+    @MainActor
+    func testDisplayManagerTogglePause() {
+        let manager = DisplayManager()
+        XCTAssertFalse(manager.isPaused)
+        manager.togglePause()
+        XCTAssertTrue(manager.isPaused)
+        manager.togglePause()
+        XCTAssertFalse(manager.isPaused)
+    }
+
+    @MainActor
+    func testDisplayManagerToggleMute() {
+        let manager = DisplayManager()
+        XCTAssertTrue(manager.isMuted, "Should default to muted")
+        manager.toggleMute()
+        XCTAssertFalse(manager.isMuted)
+        manager.toggleMute()
+        XCTAssertTrue(manager.isMuted)
     }
 }

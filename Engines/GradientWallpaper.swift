@@ -1,26 +1,22 @@
 import AppKit
 import QuartzCore
 
-/// Animated gradient fallback wallpaper. Used when no video file
-/// is bundled. Phase 1.
-///
-/// Cycles between three brand-adjacent colors with a slow wave
-/// motion. Light enough to run on any Mac without measurable
-/// resource usage.
+/// Animated gradient fallback wallpaper.
+/// Phase 1 baseline, Phase 2 adds pause support.
 final class GradientWallpaper {
     let layer: CAGradientLayer
+    private var pausedTime: CFTimeInterval = 0
 
     init() {
         let gradient = CAGradientLayer()
 
-        // Three stops: deep blue, near-black, deep crimson.
         gradient.colors = [
             NSColor(red: 0.06, green: 0.10, blue: 0.22, alpha: 1).cgColor,
             NSColor(red: 0.02, green: 0.02, blue: 0.05, alpha: 1).cgColor,
             NSColor(red: 0.24, green: 0.06, blue: 0.12, alpha: 1).cgColor,
         ]
         gradient.locations = [0.0, 0.5, 1.0]
-        gradient.startPoint = CGPoint(x: 0, y: 0)
+        gradient.startPoint = .zero
         gradient.endPoint = CGPoint(x: 1, y: 1)
 
         layer = gradient
@@ -35,5 +31,26 @@ final class GradientWallpaper {
             name: .easeInEaseOut
         )
         gradient.add(animation, forKey: "wave")
+    }
+
+    /// Freeze or resume the gradient animation in place.
+    func setPaused(_ paused: Bool) {
+        if paused {
+            pausedTime = layer.convertTime(
+                CACurrentMediaTime(),
+                from: nil
+            )
+            layer.speed = 0
+            layer.timeOffset = pausedTime
+        } else {
+            let pausedTimeOld = layer.timeOffset
+            layer.speed = 1
+            layer.timeOffset = 0
+            layer.beginTime = 0
+            let timeSincePause = layer.convertTime(
+                CACurrentMediaTime(), from: nil
+            ) - pausedTimeOld
+            layer.beginTime = timeSincePause
+        }
     }
 }
