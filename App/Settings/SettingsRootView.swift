@@ -19,7 +19,7 @@ struct SettingsRootView: View {
                 isAdvanced: isAdvanced
             )
         }
-        .navigationTitle("Settings")
+        .navigationTitle("Waraq Settings")
     }
 }
 

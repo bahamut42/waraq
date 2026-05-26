@@ -29,20 +29,10 @@ struct AboutPane: View {
 
     private var hero: some View {
         VStack(spacing: 14) {
-            Image(systemName: "rectangle.stack.fill")
+            Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 96, height: 96)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.95, green: 0.40, blue: 0.55),
-                            Color(red: 0.20, green: 0.30, blue: 0.85),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .frame(width: 128, height: 128)
             Text("Waraq")
                 .font(.system(size: 28, weight: .semibold))
                 .tracking(-0.5)

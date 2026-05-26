@@ -39,7 +39,7 @@ final class MenuBarController {
         )
         guard let button = item.button else { return }
 
-        let image = NSImage(
+        let image = NSImage(named: "MenuBarIcon") ?? NSImage(
             systemSymbolName: "square.stack.3d.up.fill",
             accessibilityDescription: "Waraq"
         )
