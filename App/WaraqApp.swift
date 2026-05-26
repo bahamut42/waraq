@@ -6,9 +6,13 @@ struct WaraqApp: App {
 
     var body: some Scene {
         Settings {
-            // Phase 2 implements the real Settings window per
-            // docs/design/settings-shell.md.
-            EmptyView()
+            SettingsRootView()
+                .environmentObject(
+                    appDelegate.displayManager ?? DisplayManager.shared
+                )
+                .frame(minWidth: 640, minHeight: 480)
+                .frame(idealWidth: 720, idealHeight: 560)
         }
+        .windowResizability(.contentSize)
     }
 }

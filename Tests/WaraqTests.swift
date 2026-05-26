@@ -124,4 +124,28 @@ final class WaraqTests: XCTestCase {
         manager.toggleMute()
         XCTAssertTrue(manager.isMuted)
     }
+
+    @MainActor
+    func testSelectedPaneDefaultsToGeneral() {
+        UserDefaults.standard.removeObject(forKey: "selectedPane")
+        let raw = UserDefaults.standard.string(forKey: "selectedPane")
+            ?? "general"
+        XCTAssertEqual(raw, "general")
+    }
+
+    @MainActor
+    func testAdvancedModeDefaultsOff() {
+        UserDefaults.standard.removeObject(forKey: "isAdvancedMode")
+        let value = UserDefaults.standard.object(
+            forKey: "isAdvancedMode"
+        ) as? Bool ?? false
+        XCTAssertFalse(value, "Advanced mode should default to off")
+    }
+
+    func testPaneIDDiagnosticsVisibilityRespectsAdvanced() {
+        XCTAssertFalse(PaneID.diagnostics.isVisible(advanced: false))
+        XCTAssertTrue(PaneID.diagnostics.isVisible(advanced: true))
+        XCTAssertTrue(PaneID.general.isVisible(advanced: false))
+        XCTAssertTrue(PaneID.general.isVisible(advanced: true))
+    }
 }

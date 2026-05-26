@@ -1,23 +1,14 @@
 import AppKit
 import SwiftUI
 
-/// Owns the menu bar status item and its popover.
-///
-/// Phase 2 implementation per docs/design/menubar.md (simplified;
-/// preview hero is a placeholder gradient until Phase 4 hooks up
-/// live wallpaper capture).
 @MainActor
 final class MenuBarController {
     private let displayManager: DisplayManager
-    private let statusItem: NSStatusItem
+    private var statusItem: NSStatusItem?
     private let popover: NSPopover
 
     init(displayManager: DisplayManager) {
         self.displayManager = displayManager
-
-        statusItem = NSStatusBar.system.statusItem(
-            withLength: NSStatusItem.variableLength
-        )
 
         popover = NSPopover()
         popover.behavior = .transient
@@ -26,14 +17,28 @@ final class MenuBarController {
             rootView: MenuBarPopoverView(displayManager: displayManager)
         )
 
-        configureStatusItem()
+        setVisible(true)
     }
 
-    private func configureStatusItem() {
-        guard let button = statusItem.button else { return }
+    func setVisible(_ visible: Bool) {
+        if visible {
+            if statusItem == nil {
+                createStatusItem()
+            }
+        } else {
+            if let item = statusItem {
+                NSStatusBar.system.removeStatusItem(item)
+                statusItem = nil
+            }
+        }
+    }
 
-        // Placeholder template icon. Phase 7 swaps in the real
-        // Waraq SVG per docs/design/app-icon.md.
+    private func createStatusItem() {
+        let item = NSStatusBar.system.statusItem(
+            withLength: NSStatusItem.variableLength
+        )
+        guard let button = item.button else { return }
+
         let image = NSImage(
             systemSymbolName: "square.stack.3d.up.fill",
             accessibilityDescription: "Waraq"
@@ -42,11 +47,13 @@ final class MenuBarController {
         button.image = image
         button.target = self
         button.action = #selector(togglePopover(_:))
+
+        statusItem = item
     }
 
     @objc
     private func togglePopover(_ sender: Any?) {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem?.button else { return }
 
         if popover.isShown {
             popover.performClose(sender)
@@ -56,8 +63,6 @@ final class MenuBarController {
                 of: button,
                 preferredEdge: .maxY
             )
-            // Bring app to front briefly so the popover keyboard
-            // shortcuts work even when the app is fully background.
             NSApp.activate(ignoringOtherApps: true)
         }
     }

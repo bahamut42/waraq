@@ -202,6 +202,23 @@ struct MenuBarPopoverView: View {
 
     private var footerMenu: some View {
         VStack(spacing: 0) {
+            SettingsLink {
+                HStack {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 12))
+                    Text("Settings...")
+                        .font(.system(size: 12))
+                    Spacer()
+                    Text("⌘,")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
             Button(action: displayManager.quitApplication) {
                 HStack {
                     Image(systemName: "power")

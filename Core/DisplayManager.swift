@@ -10,6 +10,8 @@ import Combine
 /// docs/design/settings-displays.md.
 @MainActor
 final class DisplayManager: ObservableObject {
+    static let shared = DisplayManager()
+
     @Published private(set) var displays: [DisplayInfo] = []
     @Published private(set) var isPaused: Bool = false
     @Published private(set) var isMuted: Bool = true
