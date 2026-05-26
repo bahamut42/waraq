@@ -58,6 +58,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.bahamut.waraq.tests
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Waraq.app/Contents/MacOS/Waraq"
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   Waraq:
