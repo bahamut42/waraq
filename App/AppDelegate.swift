@@ -20,6 +20,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyMenuBarVisibility()
 
         NSLog("Waraq: launched with \(manager.displays.count) display(s)")
+
+        // Present the first-launch onboarding wizard after a short
+        // delay so the menu bar icon is up before the wizard's final
+        // step references it. No-op once the user has completed it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            OnboardingWindowController.presentIfNeeded(
+                displayManager: manager
+            )
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(

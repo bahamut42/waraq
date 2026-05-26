@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 
 struct AboutPane: View {
+    @EnvironmentObject var displayManager: DisplayManager
+
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"]
             as? String ?? "0.0"
@@ -21,6 +23,20 @@ struct AboutPane: View {
                     .padding(.vertical, 18)
                     .padding(.horizontal, 40)
                 acknowledgments
+
+                Button {
+                    OnboardingWindowController.presentForced(
+                        displayManager: displayManager
+                    )
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Run Setup Again")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .padding(.top, 16)
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 28)

@@ -452,6 +452,61 @@ final class WaraqTests: XCTestCase {
     }
 
     @MainActor
+    func testOnboardingStepNavigation() {
+        let vm = OnboardingViewModel(displayManager: DisplayManager.shared)
+        XCTAssertEqual(vm.currentStep, .welcome)
+        XCTAssertFalse(vm.canGoBack)
+        XCTAssertTrue(vm.canGoForward)
+        XCTAssertFalse(vm.isLastStep)
+
+        vm.next()
+        XCTAssertEqual(vm.currentStep, .displays)
+        XCTAssertTrue(vm.canGoBack)
+
+        vm.next() // wallpaper
+        vm.next() // performance
+        vm.next() // finish
+        XCTAssertEqual(vm.currentStep, .finish)
+        XCTAssertFalse(vm.canGoForward)
+        XCTAssertTrue(vm.isLastStep)
+
+        vm.back()
+        XCTAssertEqual(vm.currentStep, .performance)
+
+        // next() at last step is a no-op
+        vm.currentStep = .finish
+        vm.next()
+        XCTAssertEqual(vm.currentStep, .finish)
+
+        // back() at first step is a no-op
+        vm.currentStep = .welcome
+        vm.back()
+        XCTAssertEqual(vm.currentStep, .welcome)
+    }
+
+    @MainActor
+    func testOnboardingCompletionFlag() {
+        let key = OnboardingViewModel.completionKey
+        UserDefaults.standard.removeObject(forKey: key)
+        defer {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+
+        XCTAssertFalse(
+            OnboardingViewModel.hasCompletedOnboarding,
+            "Should default to not completed"
+        )
+
+        let vm = OnboardingViewModel(displayManager: DisplayManager.shared)
+        vm.skip()
+
+        XCTAssertTrue(
+            OnboardingViewModel.hasCompletedOnboarding,
+            "Skip should set completion flag"
+        )
+    }
+
+    @MainActor
     func testDisableDisplayPersistsToProfile() {
         // Reproduces the Phase 9.5 bug: toggling enabled off via
         // updateDisplaySettings must update both the displayID-
