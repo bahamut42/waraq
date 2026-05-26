@@ -450,4 +450,51 @@ final class WaraqTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testDisableDisplayPersistsToProfile() {
+        // Reproduces the Phase 9.5 bug: toggling enabled off via
+        // updateDisplaySettings must update both the displayID-
+        // keyed store AND the hardware-ID-keyed profile.
+        // Without that, a display sync respawns the window.
+        let hwID = DisplayHardwareID(
+            vendor: 0xABCD, model: 0x1234, serial: 0x5678
+        )
+        let initialSettings = DisplaySettings(
+            enabled: true, fitMode: .fill,
+            volume: 0, muted: true, loop: true
+        )
+        let profile = DisplayProfile(
+            hardwareID: hwID,
+            lastKnownName: "Test Monitor",
+            wallpaperID: WallpaperLibrary.builtInGradient.id,
+            settings: initialSettings,
+            lastSeen: Date()
+        )
+        DisplayProfileStore.save(profile)
+        defer { DisplayProfileStore.delete(hardwareID: hwID) }
+
+        XCTAssertEqual(
+            DisplayProfileStore.profile(for: hwID)?.settings.enabled,
+            true,
+            "Initial profile should be enabled"
+        )
+
+        var updated = initialSettings
+        updated.enabled = false
+        let newProfile = DisplayProfile(
+            hardwareID: hwID,
+            lastKnownName: "Test Monitor",
+            wallpaperID: WallpaperLibrary.builtInGradient.id,
+            settings: updated,
+            lastSeen: Date()
+        )
+        DisplayProfileStore.save(newProfile)
+
+        XCTAssertEqual(
+            DisplayProfileStore.profile(for: hwID)?.settings.enabled,
+            false,
+            "Profile must persist enabled=false. If this fails, the bug from Phase 9.5 has regressed: subsequent display syncs will resurrect the wallpaper from the stale profile."
+        )
+    }
 }

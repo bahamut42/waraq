@@ -460,6 +460,13 @@ final class DisplayManager: ObservableObject {
         settings.enabled = enabled
         DisplaySettingsStore.save(settings, for: displayID)
 
+        // Keep the profile in lock-step with the store so a later
+        // display sync won't resurrect the window from a stale
+        // profile.
+        syncProfileForCurrentState(
+            displayID: displayID, settings: settings
+        )
+
         if enabled {
             if let screen = NSScreen.screens.first(
                 where: { $0.displayID == displayID }
@@ -481,13 +488,21 @@ final class DisplayManager: ObservableObject {
         let previous = DisplaySettingsStore.settings(for: displayID)
         DisplaySettingsStore.save(settings, for: displayID)
 
+        // Always sync the profile FIRST so even if we early-out
+        // below for an enabled change, the profile stays correct.
+        syncProfileForCurrentState(
+            displayID: displayID, settings: settings
+        )
+
         // If enabled flag toggled, respawn or teardown.
         if previous.enabled != settings.enabled {
-            setDisplayEnabled(displayID: displayID, enabled: settings.enabled)
+            setDisplayEnabled(
+                displayID: displayID, enabled: settings.enabled
+            )
             return
         }
 
-        // Live updates for video engines.
+        // Live updates for engines that support fit/volume/mute/loop.
         if let engine = videoEngines[displayID] {
             engine.fitMode = settings.fitMode
             engine.isMuted = settings.muted || isMuted
@@ -497,21 +512,28 @@ final class DisplayManager: ObservableObject {
         if let engine = gifEngines[displayID] {
             engine.updateFitMode(settings.fitMode)
         }
+    }
 
-        // Update profile snapshot.
-        if let screen = NSScreen.screens.first(
+    /// Rebuild the profile snapshot from current per-display state
+    /// (settings, wallpaper assignment, screen metadata). Used by
+    /// both updateDisplaySettings and setDisplayEnabled so the
+    /// profile and the displayID-keyed store can never drift apart.
+    private func syncProfileForCurrentState(
+        displayID: CGDirectDisplayID,
+        settings: DisplaySettings
+    ) {
+        guard let screen = NSScreen.screens.first(
             where: { $0.displayID == displayID }
-        ) {
-            let assignments = UserDefaults.standard.dictionary(
-                forKey: "displayWallpaperAssignments"
-            ) as? [String: String] ?? [:]
-            let wallpaperID = assignments[String(displayID)]
-                ?? WallpaperLibrary.builtInGradient.id
-            saveProfile(
-                displayID: displayID, screen: screen,
-                wallpaperID: wallpaperID, settings: settings
-            )
-        }
+        ) else { return }
+        let assignments = UserDefaults.standard.dictionary(
+            forKey: "displayWallpaperAssignments"
+        ) as? [String: String] ?? [:]
+        let wallpaperID = assignments[String(displayID)]
+            ?? WallpaperLibrary.builtInGradient.id
+        saveProfile(
+            displayID: displayID, screen: screen,
+            wallpaperID: wallpaperID, settings: settings
+        )
     }
 
     // Playback control
