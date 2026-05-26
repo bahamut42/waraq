@@ -1,19 +1,4 @@
 #!/usr/bin/swift
-// Generates app icon PNGs for AppIcon.appiconset.
-//
-// Crumpled paper on dark slate. Waraq = paper (Arabic).
-// The design references both the app name directly and the
-// project's self-aware "janky solution" identity.
-//
-// Run from project root:
-//   swift Scripts/GenerateAppIcon.swift
-//
-// IMPORTANT: uses NSBitmapImageRep with explicit pixel
-// dimensions instead of NSImage.lockFocus, which would
-// produce 2x-backed pixels on Retina Macs (a 512 request
-// would actually yield 1024). Verified via sips after each
-// write.
-
 import AppKit
 import Foundation
 
@@ -37,65 +22,18 @@ let sizes: [(filename: String, pixels: Int)] = [
 
 let bgTop = NSColor(srgbRed: 31 / 255.0, green: 35 / 255.0, blue: 38 / 255.0, alpha: 1.0)
 let bgBottom = NSColor(srgbRed: 20 / 255.0, green: 23 / 255.0, blue: 26 / 255.0, alpha: 1.0)
+let cream = NSColor(srgbRed: 245 / 255.0, green: 236 / 255.0, blue: 214 / 255.0, alpha: 1.0)
 
-let paperTop = NSColor(srgbRed: 245 / 255.0, green: 236 / 255.0, blue: 214 / 255.0, alpha: 1.0)
-let paperBottom = NSColor(srgbRed: 235 / 255.0, green: 223 / 255.0, blue: 192 / 255.0, alpha: 1.0)
-
-let creaseColor = NSColor(srgbRed: 148 / 255.0, green: 138 / 255.0, blue: 115 / 255.0, alpha: 0.55)
-let highlightColor = NSColor(srgbRed: 255 / 255.0, green: 251 / 255.0, blue: 239 / 255.0, alpha: 0.45)
-let dropShadow = NSColor.black.withAlphaComponent(0.35)
-let inkColor = NSColor(srgbRed: 31 / 255.0, green: 31 / 255.0, blue: 35 / 255.0, alpha: 0.6)
-
-// MARK: - Paper geometry (normalized 0..1, y is from top)
-
-/// Irregular polygon outlining a crumpled paper viewed roughly
-/// top-down. Vertices clockwise starting top-left, with
-/// asymmetric offsets to suggest hand-crumpled rather than
-/// folded-geometrically.
-let paperOutline: [(CGFloat, CGFloat)] = [
-    (0.22, 0.24), // TL
-    (0.36, 0.18), // T1 peak
-    (0.50, 0.21), // TM slight valley
-    (0.65, 0.17), // T2 peak
-    (0.80, 0.23), // TR
-    (0.85, 0.36), // R1 raised
-    (0.82, 0.50), // RM valley
-    (0.86, 0.63), // R2 raised
-    (0.81, 0.76), // BR
-    (0.66, 0.82), // B1 peak
-    (0.50, 0.79), // BM
-    (0.35, 0.83), // B2 peak
-    (0.19, 0.78), // BL
-    (0.16, 0.64), // L1 raised
-    (0.20, 0.50), // LM valley
-    (0.17, 0.36), // L2 raised
-]
-
-/// Internal crease lines (start, end) in normalized coords.
-/// Six segments that suggest folds crisscrossing the surface.
-let creases: [((CGFloat, CGFloat), (CGFloat, CGFloat))] = [
-    ((0.22, 0.24), (0.62, 0.55)), // TL diagonal toward interior
-    ((0.62, 0.55), (0.81, 0.76)), // interior to BR
-    ((0.80, 0.23), (0.46, 0.55)), // TR diagonal toward interior
-    ((0.46, 0.55), (0.19, 0.78)), // interior to BL
-    ((0.36, 0.18), (0.44, 0.46)), // T1 short crease
-    ((0.66, 0.82), (0.56, 0.60)), // B1 short crease
-]
-
-// MARK: - Drawing
+// MARK: - Drawing helpers
 
 func makeContext(size: Int) -> (NSBitmapImageRep, NSGraphicsContext)? {
     guard let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil,
-        pixelsWide: size,
-        pixelsHigh: size,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
+        pixelsWide: size, pixelsHigh: size,
+        bitsPerSample: 8, samplesPerPixel: 4,
+        hasAlpha: true, isPlanar: false,
         colorSpaceName: .deviceRGB,
-        bytesPerRow: size * 4,
-        bitsPerPixel: 32
+        bytesPerRow: size * 4, bitsPerPixel: 32
     ) else { return nil }
     rep.size = NSSize(width: size, height: size)
     guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else {
@@ -110,6 +48,33 @@ func pt(_ x: CGFloat, _ y: CGFloat, size s: CGFloat) -> NSPoint {
     NSPoint(x: x * s, y: (1 - y) * s)
 }
 
+/// Draw a horizontal zigzag (chevron) at center y, with peaks
+/// alternating above and below the center.
+func drawChevron(
+    centerY: CGFloat,
+    fromX: CGFloat, toX: CGFloat,
+    peaks: Int,
+    amplitude: CGFloat,
+    size s: CGFloat,
+    lineWidth: CGFloat
+) {
+    let path = NSBezierPath()
+    let step = (toX - fromX) / CGFloat(peaks * 2)
+    var x = fromX
+    var goingUp = true
+    path.move(to: pt(x, centerY, size: s))
+    for _ in 0..<(peaks * 2) {
+        x += step
+        let y = goingUp ? (centerY - amplitude) : (centerY + amplitude)
+        path.line(to: pt(x, y, size: s))
+        goingUp.toggle()
+    }
+    path.lineWidth = lineWidth
+    path.lineCapStyle = .round
+    path.lineJoinStyle = .round
+    path.stroke()
+}
+
 func drawIcon(size: Int) -> NSBitmapImageRep? {
     guard let (rep, ctx) = makeContext(size: size) else { return nil }
 
@@ -119,115 +84,83 @@ func drawIcon(size: Int) -> NSBitmapImageRep? {
     let s = CGFloat(size)
     let cornerRadius = s * 0.22
 
-    // 1. Rounded-rect clip + background gradient
+    // 1. Background gradient with rounded-rect clip
     let bgRect = NSRect(x: 0, y: 0, width: s, height: s)
     let bgPath = NSBezierPath(
         roundedRect: bgRect,
-        xRadius: cornerRadius,
-        yRadius: cornerRadius
+        xRadius: cornerRadius, yRadius: cornerRadius
     )
     NSGraphicsContext.saveGraphicsState()
     bgPath.addClip()
-
-    guard let bgGradient = NSGradient(starting: bgTop, ending: bgBottom) else {
-        NSGraphicsContext.restoreGraphicsState()
-        NSGraphicsContext.restoreGraphicsState()
-        return nil
-    }
-    bgGradient.draw(in: bgRect, angle: -90)
-
-    // 2. Paper polygon path
-    let paperPath = NSBezierPath()
-    paperPath.move(to: pt(paperOutline[0].0, paperOutline[0].1, size: s))
-    for vertex in paperOutline.dropFirst() {
-        paperPath.line(to: pt(vertex.0, vertex.1, size: s))
-    }
-    paperPath.close()
-
-    // 3. Drop shadow under paper
-    let shadow = NSShadow()
-    shadow.shadowColor = dropShadow
-    shadow.shadowBlurRadius = s * 0.025
-    shadow.shadowOffset = NSSize(width: s * 0.012, height: -s * 0.018)
-    shadow.set()
-
-    // 4. Fill paper with gradient (shadow applies to fill)
-    NSGraphicsContext.saveGraphicsState()
-    paperPath.addClip()
-    if let paperGradient = NSGradient(starting: paperTop, ending: paperBottom) {
-        paperGradient.draw(in: paperPath.bounds, angle: -75)
-    }
-    NSGraphicsContext.restoreGraphicsState()
-
-    // Clear shadow so subsequent strokes don't get shadowed
-    let noShadow = NSShadow()
-    noShadow.shadowColor = .clear
-    noShadow.shadowOffset = .zero
-    noShadow.shadowBlurRadius = 0
-    noShadow.set()
-
-    // 5. Crease lines (clipped to paper)
-    NSGraphicsContext.saveGraphicsState()
-    paperPath.addClip()
-
-    // Shadow side of each crease
-    creaseColor.setStroke()
-    for crease in creases {
-        let line = NSBezierPath()
-        line.move(to: pt(crease.0.0, crease.0.1, size: s))
-        line.line(to: pt(crease.1.0, crease.1.1, size: s))
-        line.lineWidth = s * 0.008
-        line.lineCapStyle = .round
-        line.stroke()
+    if let bgGradient = NSGradient(starting: bgTop, ending: bgBottom) {
+        bgGradient.draw(in: bgRect, angle: -90)
     }
 
-    // Highlight side of each crease (offset slightly toward upper-left
-    // to simulate the raised edge where light catches the fold).
-    highlightColor.setStroke()
-    let off = s * 0.005
-    for crease in creases {
-        let line = NSBezierPath()
-        line.move(to: NSPoint(
-            x: crease.0.0 * s - off,
-            y: (1 - crease.0.1) * s + off
-        ))
-        line.line(to: NSPoint(
-            x: crease.1.0 * s - off,
-            y: (1 - crease.1.1) * s + off
-        ))
-        line.lineWidth = s * 0.006
-        line.lineCapStyle = .round
-        line.stroke()
-    }
+    // 2. Paper sheet outline (stroked rounded rect)
+    cream.setStroke()
+    let lineWidth = s * 0.04
+    let paperRect = NSRect(
+        x: 0.18 * s,
+        y: (1 - 0.68) * s,
+        width: 0.64 * s,
+        height: 0.52 * s
+    )
+    let paperPath = NSBezierPath(
+        roundedRect: paperRect,
+        xRadius: s * 0.04, yRadius: s * 0.04
+    )
+    paperPath.lineWidth = lineWidth
+    paperPath.lineJoinStyle = .round
+    paperPath.stroke()
 
-    NSGraphicsContext.restoreGraphicsState()
-
-    // 6. Ink scribble in upper-left of paper (only at 64+)
-    if size >= 64 {
-        NSGraphicsContext.saveGraphicsState()
-        paperPath.addClip()
-        inkColor.setStroke()
-        let ink = NSBezierPath()
-        ink.move(to: pt(0.30, 0.34, size: s))
-        ink.curve(
-            to: pt(0.40, 0.36, size: s),
-            controlPoint1: pt(0.33, 0.31, size: s),
-            controlPoint2: pt(0.37, 0.34, size: s)
+    // 3. Chevron pattern (5 rows in upper portion of paper)
+    let chevronLineWidth = s * 0.025
+    let chevronAmplitude = s * 0.02
+    let chevronYs: [CGFloat] = [0.24, 0.32, 0.40, 0.48, 0.56]
+    let chevronFromX: CGFloat = 0.22
+    let chevronToX: CGFloat = 0.78
+    for y in chevronYs {
+        drawChevron(
+            centerY: y,
+            fromX: chevronFromX, toX: chevronToX,
+            peaks: 5, amplitude: chevronAmplitude,
+            size: s, lineWidth: chevronLineWidth
         )
-        ink.curve(
-            to: pt(0.43, 0.41, size: s),
-            controlPoint1: pt(0.42, 0.37, size: s),
-            controlPoint2: pt(0.43, 0.39, size: s)
-        )
-        ink.lineWidth = s * 0.011
-        ink.lineCapStyle = .round
-        ink.lineJoinStyle = .round
-        ink.stroke()
-        NSGraphicsContext.restoreGraphicsState()
     }
+
+    // 4. Rolled section at bottom of paper
+    // Outer oval representing the rolled cylinder side profile
+    let rollRect = NSRect(
+        x: 0.18 * s,
+        y: (1 - 0.84) * s,
+        width: 0.64 * s,
+        height: 0.18 * s
+    )
+    let rollPath = NSBezierPath(
+        roundedRect: rollRect,
+        xRadius: s * 0.09, yRadius: s * 0.09
+    )
+    rollPath.lineWidth = lineWidth
+    rollPath.lineJoinStyle = .round
+    rollPath.stroke()
+
+    // Inner curl: a small shape on the right end showing the
+    // inside of the rolled paper
+    let curlRect = NSRect(
+        x: 0.62 * s,
+        y: (1 - 0.80) * s,
+        width: 0.14 * s,
+        height: 0.10 * s
+    )
+    let curlPath = NSBezierPath(
+        roundedRect: curlRect,
+        xRadius: s * 0.05, yRadius: s * 0.05
+    )
+    curlPath.lineWidth = chevronLineWidth
+    curlPath.stroke()
 
     NSGraphicsContext.restoreGraphicsState() // bg clip
-    NSGraphicsContext.restoreGraphicsState() // saveGraphicsState top
+    NSGraphicsContext.restoreGraphicsState() // outer save
 
     return rep
 }

@@ -8,29 +8,6 @@ let sizes: [(filename: String, pixels: Int)] = [
     ("menubar@2x.png", 44),
 ]
 
-/// Crumpled silhouette - 14 vertices, irregular polygon reading
-/// as crumpled paper at 22px. Normalized 0..1, y from top.
-let outline: [(CGFloat, CGFloat)] = [
-    (0.18, 0.30),
-    (0.32, 0.10),
-    (0.50, 0.16),
-    (0.66, 0.08),
-    (0.84, 0.22),
-    (0.90, 0.42),
-    (0.82, 0.56),
-    (0.92, 0.72),
-    (0.78, 0.90),
-    (0.56, 0.86),
-    (0.40, 0.92),
-    (0.20, 0.86),
-    (0.10, 0.66),
-    (0.16, 0.48),
-]
-
-/// One internal crease line, only drawn at 44px where it's visible
-let crease: ((CGFloat, CGFloat), (CGFloat, CGFloat)) =
-    ((0.30, 0.28), (0.72, 0.66))
-
 func makeContext(size: Int) -> (NSBitmapImageRep, NSGraphicsContext)? {
     guard let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil,
@@ -47,10 +24,6 @@ func makeContext(size: Int) -> (NSBitmapImageRep, NSGraphicsContext)? {
     return (rep, ctx)
 }
 
-func pt(_ x: CGFloat, _ y: CGFloat, size s: CGFloat) -> NSPoint {
-    NSPoint(x: x * s, y: (1 - y) * s)
-}
-
 func drawIcon(size: Int) -> NSBitmapImageRep? {
     guard let (rep, ctx) = makeContext(size: size) else { return nil }
 
@@ -58,33 +31,36 @@ func drawIcon(size: Int) -> NSBitmapImageRep? {
     NSGraphicsContext.current = ctx
 
     let s = CGFloat(size)
-
-    // Solid black template
     NSColor.black.setFill()
 
-    let path = NSBezierPath()
-    path.move(to: pt(outline[0].0, outline[0].1, size: s))
-    for vertex in outline.dropFirst() {
-        path.line(to: pt(vertex.0, vertex.1, size: s))
-    }
-    path.close()
-    path.fill()
+    // Combined filled silhouette: paper sheet (rounded rect)
+    // + rolled cylinder at bottom (rounded rect with larger
+    // corner radius for the curved roll look). The shapes
+    // overlap so they read as one connected silhouette.
 
-    // At 44px, knock out a thin crease line to suggest fold
-    if size >= 44 {
-        // Punch a thin transparent crease through the filled
-        // silhouette via destination-out so the tinted template
-        // shows a fold line.
-        ctx.cgContext.setBlendMode(.destinationOut)
-        let creasePath = NSBezierPath()
-        creasePath.move(to: pt(crease.0.0, crease.0.1, size: s))
-        creasePath.line(to: pt(crease.1.0, crease.1.1, size: s))
-        creasePath.lineWidth = s * 0.04
-        creasePath.lineCapStyle = .round
-        NSColor.black.setStroke()
-        creasePath.stroke()
-        ctx.cgContext.setBlendMode(.normal)
-    }
+    let sheetRect = NSRect(
+        x: 0.20 * s,
+        y: (1 - 0.68) * s,
+        width: 0.60 * s,
+        height: 0.50 * s
+    )
+    let sheetPath = NSBezierPath(
+        roundedRect: sheetRect,
+        xRadius: s * 0.04, yRadius: s * 0.04
+    )
+    sheetPath.fill()
+
+    let rollRect = NSRect(
+        x: 0.16 * s,
+        y: (1 - 0.88) * s,
+        width: 0.68 * s,
+        height: 0.20 * s
+    )
+    let rollPath = NSBezierPath(
+        roundedRect: rollRect,
+        xRadius: s * 0.10, yRadius: s * 0.10
+    )
+    rollPath.fill()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
