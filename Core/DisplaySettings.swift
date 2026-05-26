@@ -9,12 +9,29 @@ struct DisplaySettings: Codable, Equatable {
     var loop: Bool = true
 
     enum FitMode: String, Codable, CaseIterable {
-        case fill, fit, stretch
+        case fill // Fill Screen
+        case fit // Fit to Screen
+        case stretch // Stretch to Fill Screen
+        case center // Natural size, centered
+        case tile // Repeat in a grid
+
         var label: String {
             switch self {
-            case .fill: "Fill"
-            case .fit: "Fit"
-            case .stretch: "Stretch"
+            case .fill: "Fill Screen"
+            case .fit: "Fit to Screen"
+            case .stretch: "Stretch to Fill Screen"
+            case .center: "Center"
+            case .tile: "Tile"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .fill: "Crop edges to fill the display"
+            case .fit: "Show entire video, may letterbox"
+            case .stretch: "Stretch to fill exactly, may distort"
+            case .center: "Natural pixel size, centered"
+            case .tile: "Repeat in a grid across the display"
             }
         }
     }

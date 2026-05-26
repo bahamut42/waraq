@@ -7,7 +7,7 @@ struct StarfieldView: View {
         var startDistance: Double
     }
 
-    private static let stars: [Star] = (0..<200).map { _ in
+    private static let stars: [Star] = (0..<100).map { _ in
         Star(
             angle: Double.random(in: 0..<2 * .pi),
             speed: Double.random(in: 60...260),

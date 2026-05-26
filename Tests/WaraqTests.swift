@@ -317,8 +317,18 @@ final class WaraqTests: XCTestCase {
     func testVideoEngineFitMode() {
         let url = URL(fileURLWithPath: "/tmp/nope.mp4")
         let engine = VideoEngine(videoURL: url, fitMode: .fit)
-        XCTAssertEqual(engine.layer.videoGravity, .resizeAspect)
+        XCTAssertEqual(engine.playerLayer.videoGravity, .resizeAspect)
         engine.fitMode = .stretch
-        XCTAssertEqual(engine.layer.videoGravity, .resize)
+        XCTAssertEqual(engine.playerLayer.videoGravity, .resize)
+    }
+
+    @MainActor
+    func testFitModeFiveCases() {
+        let all = DisplaySettings.FitMode.allCases
+        XCTAssertEqual(all.count, 5)
+        XCTAssertEqual(
+            Set(all.map(\.rawValue)),
+            ["fill", "fit", "stretch", "center", "tile"]
+        )
     }
 }

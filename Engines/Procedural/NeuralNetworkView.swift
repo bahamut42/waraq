@@ -8,7 +8,7 @@ struct NeuralNetworkView: View {
         var vy: Double
     }
 
-    private static let nodes: [Node] = (0..<48).map { _ in
+    private static let nodes: [Node] = (0..<32).map { _ in
         Node(
             x: Double.random(in: 0...1),
             y: Double.random(in: 0...1),

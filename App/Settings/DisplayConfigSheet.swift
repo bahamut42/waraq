@@ -237,7 +237,7 @@ struct DisplayConfigSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Fit")
                             .font(.system(size: 13))
-                        Text(fitDescription)
+                        Text(settings.fitMode.description)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -250,7 +250,7 @@ struct DisplayConfigSheet: View {
                             Text(mode.label).tag(mode)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .labelsHidden()
                     .frame(width: 200)
                 }
@@ -310,14 +310,6 @@ struct DisplayConfigSheet: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
-    }
-
-    private var fitDescription: String {
-        switch settings.fitMode {
-        case .fill: "Crop edges to fill the display"
-        case .fit: "Show entire video, may letterbox"
-        case .stretch: "Stretch to fill exactly, may distort"
-        }
     }
 
     private var footer: some View {
