@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Per-display wallpaper picker sheet. Phase 5 version: just the
-/// wallpaper choice. Per-display volume/fit/mute arrive in Phase 6.
 struct DisplayConfigSheet: View {
     let display: DisplayManager.DisplayInfo
 
@@ -10,6 +8,7 @@ struct DisplayConfigSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedID: String
+    @State private var settings: DisplaySettings
 
     init(display: DisplayManager.DisplayInfo) {
         self.display = display
@@ -19,15 +18,44 @@ struct DisplayConfigSheet: View {
         let initial = assignments[String(display.id)]
             ?? WallpaperLibrary.builtInGradient.id
         _selectedID = State(initialValue: initial)
+        _settings = State(
+            initialValue: DisplaySettingsStore.settings(for: display.id)
+        )
+    }
+
+    private var selectedWallpaper: Wallpaper? {
+        library.wallpapers.first { $0.id == selectedID }
+    }
+
+    private var showsFitAndVolume: Bool {
+        guard let w = selectedWallpaper else { return false }
+        switch w.kind {
+        case .video: return true
+        case .url:
+            guard let str = w.urlString,
+                  let url = URL(string: str) else { return false }
+            return WebEngine.isDirectVideo(url)
+        default: return false
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            grid
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    enableSection
+                    sectionLabel("WALLPAPER")
+                    grid.padding(.bottom, 8)
+                    sectionLabel("PLAYBACK")
+                    playbackCard
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
             footer
         }
-        .frame(width: 540, height: 540)
+        .frame(width: 560, height: 660)
     }
 
     private var header: some View {
@@ -43,27 +71,53 @@ struct DisplayConfigSheet: View {
         .padding(.vertical, 16)
     }
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [GridItem(
-                    .adaptive(
-                        minimum: 130,
-                        maximum: 180
-                    ),
-                    spacing: 10
-                )],
-                spacing: 10
-            ) {
-                ForEach(library.wallpapers) { wallpaper in
-                    pickerCard(wallpaper)
-                        .onTapGesture {
-                            selectedID = wallpaper.id
-                        }
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .tracking(0.5)
+            .foregroundStyle(.secondary)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
+            .padding(.horizontal, 2)
+    }
+
+    private var enableSection: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Run wallpaper on this display")
+                        .font(.system(size: 13))
+                    Text(settings.enabled
+                        ? "Active. macOS wallpaper is hidden."
+                        : "Off. macOS wallpaper shows normally.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
+                Spacer()
+                Toggle("", isOn: $settings.enabled)
+                    .toggleStyle(.switch).labelsHidden()
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.vertical, 11)
+            .padding(.horizontal, 14)
+        }
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
+        .padding(.top, 4)
+    }
+
+    private var grid: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 130, maximum: 180), spacing: 10)],
+            spacing: 10
+        ) {
+            ForEach(library.wallpapers) { wallpaper in
+                pickerCard(wallpaper)
+                    .onTapGesture { selectedID = wallpaper.id }
+            }
         }
     }
 
@@ -71,13 +125,13 @@ struct DisplayConfigSheet: View {
         let isSelected = wallpaper.id == selectedID
         return VStack(alignment: .leading, spacing: 0) {
             Rectangle()
-                .fill(thumbnailGradient(for: wallpaper.kind))
+                .fill(thumbnailGradient(for: wallpaper))
                 .aspectRatio(16.0 / 10.0, contentMode: .fit)
             VStack(alignment: .leading, spacing: 2) {
                 Text(wallpaper.name)
                     .font(.system(size: 11, weight: .medium))
                     .lineLimit(1)
-                Text(typeLabel(wallpaper.kind))
+                Text(metaLine(for: wallpaper))
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -98,57 +152,186 @@ struct DisplayConfigSheet: View {
         .contentShape(Rectangle())
     }
 
-    private func thumbnailGradient(for kind: Wallpaper.Kind)
-        -> LinearGradient
-    {
-        switch kind {
+    private func metaLine(for w: Wallpaper) -> String {
+        switch w.kind {
+        case .builtInGradient: "BUILT-IN"
+        case .procedural:
+            "BUILT-IN · " + (w.proceduralKey?.uppercased() ?? "")
+        case .video: "VIDEO"
+        case .url:
+            if let host = w.urlHost { "URL · \(host.uppercased())" } else { "URL" }
+        case .image: "IMAGE"
+        }
+    }
+
+    private func thumbnailGradient(for w: Wallpaper) -> LinearGradient {
+        switch w.kind {
         case .builtInGradient:
             LinearGradient(
                 colors: [
                     Color(red: 0.06, green: 0.10, blue: 0.22),
                     Color(red: 0.24, green: 0.06, blue: 0.12),
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
+        case .procedural:
+            proceduralGradient(for: w.proceduralKey ?? "")
         case .video:
             LinearGradient(
                 colors: [
                     Color(red: 0.15, green: 0.18, blue: 0.30),
                     Color(red: 0.10, green: 0.12, blue: 0.18),
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+        case .url:
+            LinearGradient(
+                colors: [
+                    Color(red: 0.20, green: 0.14, blue: 0.26),
+                    Color(red: 0.10, green: 0.10, blue: 0.18),
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
         case .image:
             LinearGradient(
-                colors: [
-                    Color.gray.opacity(0.4),
-                    Color.gray.opacity(0.2),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.2)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
         }
     }
 
-    private func typeLabel(_ kind: Wallpaper.Kind) -> String {
-        switch kind {
-        case .builtInGradient: "BUILT-IN"
-        case .video: "VIDEO"
-        case .image: "IMAGE"
+    private func proceduralGradient(for key: String) -> LinearGradient {
+        let colors: [Color] = switch key {
+        case "aurora":
+            [
+                Color(red: 0.10, green: 0.30, blue: 0.40),
+                Color(red: 0.30, green: 0.10, blue: 0.45),
+            ]
+        case "matrix-rain":
+            [Color(red: 0.02, green: 0.18, blue: 0.05), .black]
+        case "synthwave":
+            [
+                Color(red: 0.85, green: 0.20, blue: 0.50),
+                Color(red: 0.10, green: 0.02, blue: 0.30),
+            ]
+        case "starfield":
+            [Color(red: 0.04, green: 0.04, blue: 0.10), .black]
+        case "neural-network":
+            [
+                Color(red: 0.10, green: 0.20, blue: 0.40),
+                Color(red: 0.04, green: 0.05, blue: 0.10),
+            ]
+        default:
+            [Color.gray, .black]
+        }
+        return LinearGradient(
+            colors: colors,
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+    }
+
+    private var playbackCard: some View {
+        VStack(spacing: 0) {
+            if showsFitAndVolume {
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Fit")
+                            .font(.system(size: 13))
+                        Text(fitDescription)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 12)
+                    Picker("", selection: $settings.fitMode) {
+                        ForEach(
+                            DisplaySettings.FitMode.allCases,
+                            id: \.self
+                        ) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 200)
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 14)
+                Divider()
+            }
+
+            HStack(spacing: 16) {
+                Text("Loop")
+                    .font(.system(size: 13))
+                Spacer()
+                Toggle("", isOn: $settings.loop)
+                    .toggleStyle(.switch).labelsHidden()
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 14)
+
+            Divider()
+
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Muted")
+                        .font(.system(size: 13))
+                    Text("Wallpapers default to muted")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: $settings.muted)
+                    .toggleStyle(.switch).labelsHidden()
+            }
+            .padding(.vertical, 11)
+            .padding(.horizontal, 14)
+
+            if !settings.muted, showsFitAndVolume {
+                Divider()
+                HStack(spacing: 16) {
+                    Image(systemName: "speaker.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    Slider(value: $settings.volume, in: 0...1)
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    Text("\(Int(settings.volume * 100))%")
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 36, alignment: .trailing)
+                }
+                .padding(.vertical, 11)
+                .padding(.horizontal, 14)
+            }
+        }
+        .background(Color.primary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+
+    private var fitDescription: String {
+        switch settings.fitMode {
+        case .fill: "Crop edges to fill the display"
+        case .fit: "Show entire video, may letterbox"
+        case .stretch: "Stretch to fill exactly, may distort"
         }
     }
 
     private var footer: some View {
         HStack {
             Spacer()
-            Button("Cancel") { dismiss() }
-                .controlSize(.large)
+            Button("Cancel") { dismiss() }.controlSize(.large)
             Button("Done") {
                 displayManager.reassignWallpaper(
                     displayID: display.id,
                     wallpaperID: selectedID
+                )
+                displayManager.updateDisplaySettings(
+                    displayID: display.id,
+                    settings: settings
                 )
                 dismiss()
             }

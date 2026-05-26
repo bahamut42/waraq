@@ -23,6 +23,8 @@ final class DisplayManager: ObservableObject {
     private var windows: [CGDirectDisplayID: WallpaperWindow] = [:]
     private var videoEngines: [CGDirectDisplayID: VideoEngine] = [:]
     private var gradients: [CGDirectDisplayID: GradientWallpaper] = [:]
+    private var webEngines: [CGDirectDisplayID: WebEngine] = [:]
+    private var proceduralViews: [CGDirectDisplayID: NSView] = [:]
 
     private var screenObserver: NSObjectProtocol?
     private var governorCancellable: AnyCancellable?
@@ -76,11 +78,13 @@ final class DisplayManager: ObservableObject {
             case .playing:
                 videoEngines[id]?.play()
                 gradients[id]?.setPaused(false)
+                webEngines[id]?.play()
             case .paused, .throttled:
                 // Phase 4 simplification: throttled treated as
                 // paused. Future phases will halve FPS instead.
                 videoEngines[id]?.pause()
                 gradients[id]?.setPaused(true)
+                webEngines[id]?.pause()
             }
         }
     }
@@ -102,6 +106,8 @@ final class DisplayManager: ObservableObject {
             windows.removeValue(forKey: id)
             videoEngines.removeValue(forKey: id)
             gradients.removeValue(forKey: id)
+            webEngines.removeValue(forKey: id)
+            proceduralViews.removeValue(forKey: id)
         }
 
         // Spawn windows for displays that appeared.
@@ -128,8 +134,12 @@ final class DisplayManager: ObservableObject {
     }
 
     private func spawnWindow(for screen: NSScreen, id: CGDirectDisplayID) {
-        let window = WallpaperWindow(for: screen)
+        let settings = DisplaySettingsStore.settings(for: id)
 
+        // Honor per-display enabled flag.
+        guard settings.enabled else { return }
+
+        let window = WallpaperWindow(for: screen)
         let wallpaper = wallpaperToSpawn(for: id)
 
         switch wallpaper.kind {
@@ -137,28 +147,62 @@ final class DisplayManager: ObservableObject {
             let gradient = GradientWallpaper()
             window.install(layer: gradient.layer)
             gradients[id] = gradient
-            if isPaused {
-                gradient.setPaused(true)
-            }
+            if isPaused { gradient.setPaused(true) }
 
-        case .video:
-            if let videoURL = library.fileURL(for: wallpaper) {
-                let engine = VideoEngine(videoURL: videoURL)
-                engine.isMuted = isMuted
-                window.install(layer: engine.layer)
-                if !isPaused {
-                    engine.play()
-                }
-                videoEngines[id] = engine
+        case .procedural:
+            if let key = wallpaper.proceduralKey,
+               let view = ProceduralFactory.makeView(for: key)
+            {
+                window.install(view: view)
+                proceduralViews[id] = view
             } else {
-                // File missing; fall back to gradient.
                 let gradient = GradientWallpaper()
                 window.install(layer: gradient.layer)
                 gradients[id] = gradient
             }
 
+        case .video:
+            if let videoURL = library.fileURL(for: wallpaper) {
+                let engine = VideoEngine(
+                    videoURL: videoURL,
+                    fitMode: settings.fitMode
+                )
+                engine.isMuted = settings.muted || isMuted
+                engine.volume = Float(settings.volume)
+                engine.loop = settings.loop
+                window.install(layer: engine.layer)
+                if !isPaused { engine.play() }
+                videoEngines[id] = engine
+            } else {
+                let gradient = GradientWallpaper()
+                window.install(layer: gradient.layer)
+                gradients[id] = gradient
+            }
+
+        case .url:
+            if let str = wallpaper.urlString,
+               let url = URL(string: str)
+            {
+                if WebEngine.isDirectVideo(url) {
+                    let engine = VideoEngine(
+                        videoURL: url,
+                        fitMode: settings.fitMode
+                    )
+                    engine.isMuted = settings.muted || isMuted
+                    engine.volume = Float(settings.volume)
+                    engine.loop = settings.loop
+                    window.install(layer: engine.layer)
+                    if !isPaused { engine.play() }
+                    videoEngines[id] = engine
+                } else {
+                    let web = WebEngine(url: url)
+                    window.install(view: web.view)
+                    if !isPaused { web.play() }
+                    webEngines[id] = web
+                }
+            }
+
         case .image:
-            // Phase 7 - for now, use gradient as fallback.
             let gradient = GradientWallpaper()
             window.install(layer: gradient.layer)
             gradients[id] = gradient
@@ -200,13 +244,7 @@ final class DisplayManager: ObservableObject {
             assignments, forKey: "displayWallpaperAssignments"
         )
 
-        // Tear down the old window for this display.
-        if let window = windows[displayID] {
-            window.orderOut(nil)
-        }
-        windows.removeValue(forKey: displayID)
-        videoEngines.removeValue(forKey: displayID)
-        gradients.removeValue(forKey: displayID)
+        teardownWindow(for: displayID)
 
         // Re-spawn.
         if let screen = NSScreen.screens.first(where: {
@@ -216,19 +254,70 @@ final class DisplayManager: ObservableObject {
         }
     }
 
+    private func teardownWindow(for displayID: CGDirectDisplayID) {
+        if let window = windows[displayID] {
+            window.orderOut(nil)
+        }
+        windows.removeValue(forKey: displayID)
+        videoEngines.removeValue(forKey: displayID)
+        gradients.removeValue(forKey: displayID)
+        webEngines.removeValue(forKey: displayID)
+        proceduralViews.removeValue(forKey: displayID)
+    }
+
+    func setDisplayEnabled(displayID: CGDirectDisplayID, enabled: Bool) {
+        var settings = DisplaySettingsStore.settings(for: displayID)
+        settings.enabled = enabled
+        DisplaySettingsStore.save(settings, for: displayID)
+
+        if enabled {
+            if let screen = NSScreen.screens.first(
+                where: { $0.displayID == displayID }
+            ), windows[displayID] == nil {
+                spawnWindow(for: screen, id: displayID)
+            }
+        } else {
+            teardownWindow(for: displayID)
+        }
+
+        // Refresh published list so UI updates.
+        syncDisplays()
+    }
+
+    func updateDisplaySettings(
+        displayID: CGDirectDisplayID,
+        settings: DisplaySettings
+    ) {
+        let previous = DisplaySettingsStore.settings(for: displayID)
+        DisplaySettingsStore.save(settings, for: displayID)
+
+        // If enabled flag toggled, respawn or teardown.
+        if previous.enabled != settings.enabled {
+            setDisplayEnabled(displayID: displayID, enabled: settings.enabled)
+            return
+        }
+
+        // Live updates for video engines.
+        if let engine = videoEngines[displayID] {
+            engine.fitMode = settings.fitMode
+            engine.isMuted = settings.muted || isMuted
+            engine.volume = Float(settings.volume)
+            engine.loop = settings.loop
+        }
+    }
+
     // Playback control
 
     func togglePause() {
         isPaused.toggle()
         for engine in videoEngines.values {
-            if isPaused {
-                engine.pause()
-            } else {
-                engine.play()
-            }
+            isPaused ? engine.pause() : engine.play()
         }
         for gradient in gradients.values {
             gradient.setPaused(isPaused)
+        }
+        for web in webEngines.values {
+            isPaused ? web.pause() : web.play()
         }
     }
 

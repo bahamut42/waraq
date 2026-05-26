@@ -250,4 +250,75 @@ final class WaraqTests: XCTestCase {
         XCTAssertEqual(decoded.kind, .video)
         XCTAssertEqual(decoded.fileSizeBytes, 1024)
     }
+
+    @MainActor
+    func testProceduralFactoryAllKeys() throws {
+        for builtIn in ProceduralFactory.allBuiltIns {
+            XCTAssertEqual(builtIn.kind, .procedural)
+            XCTAssertNotNil(builtIn.proceduralKey)
+            let view = try ProceduralFactory.makeView(
+                for: XCTUnwrap(builtIn.proceduralKey)
+            )
+            XCTAssertNotNil(view, "ProceduralFactory should produce view for \(builtIn.name)")
+        }
+    }
+
+    @MainActor
+    func testLibrarySeedsBuiltIns() {
+        let library = WallpaperLibrary()
+        let procedural = library.wallpapers.filter {
+            $0.kind == .procedural
+        }
+        XCTAssertEqual(
+            procedural.count,
+            5,
+            "Should seed 5 procedural built-ins"
+        )
+    }
+
+    @MainActor
+    func testWebEngineExtractsYouTubeID() throws {
+        XCTAssertEqual(
+            try WebEngine.extractYouTubeID(
+                from: XCTUnwrap(URL(string: "https://youtu.be/abc123XYZ"))
+            ),
+            "abc123XYZ"
+        )
+        XCTAssertEqual(
+            try WebEngine.extractYouTubeID(
+                from: XCTUnwrap(URL(string: "https://www.youtube.com/watch?v=abc123XYZ"))
+            ),
+            "abc123XYZ"
+        )
+    }
+
+    @MainActor
+    func testWebEngineDetectsDirectVideo() throws {
+        XCTAssertTrue(try WebEngine.isDirectVideo(
+            XCTUnwrap(URL(string: "https://example.com/movie.mp4"))
+        ))
+        XCTAssertFalse(try WebEngine.isDirectVideo(
+            XCTUnwrap(URL(string: "https://youtu.be/abc"))
+        ))
+    }
+
+    @MainActor
+    func testDisplaySettingsRoundtrip() {
+        let settings = DisplaySettings(
+            enabled: false, fitMode: .fit,
+            volume: 0.5, muted: false, loop: false
+        )
+        DisplaySettingsStore.save(settings, for: 999_998)
+        let loaded = DisplaySettingsStore.settings(for: 999_998)
+        XCTAssertEqual(loaded, settings)
+    }
+
+    @MainActor
+    func testVideoEngineFitMode() {
+        let url = URL(fileURLWithPath: "/tmp/nope.mp4")
+        let engine = VideoEngine(videoURL: url, fitMode: .fit)
+        XCTAssertEqual(engine.layer.videoGravity, .resizeAspect)
+        engine.fitMode = .stretch
+        XCTAssertEqual(engine.layer.videoGravity, .resize)
+    }
 }

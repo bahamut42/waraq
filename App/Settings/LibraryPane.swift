@@ -10,11 +10,12 @@ struct LibraryPane: View {
     @State private var selectedID: String?
     @State private var importError: String?
     @State private var showingImportError: Bool = false
+    @State private var showingURLImport: Bool = false
 
     enum TypeFilter: String, CaseIterable {
         case all = "All"
         case video = "Video"
-        case image = "Image"
+        case url = "URL"
         case builtin = "Built-in"
     }
 
@@ -31,6 +32,7 @@ struct LibraryPane: View {
                 toolbar
                 counterLine
                 wallpaperGrid
+                restoreFooter
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
@@ -41,6 +43,9 @@ struct LibraryPane: View {
             actions: { Button("OK") {} },
             message: { Text(importError ?? "") }
         )
+        .sheet(isPresented: $showingURLImport) {
+            URLImportSheet()
+        }
     }
 
     private var titleRow: some View {
@@ -55,7 +60,6 @@ struct LibraryPane: View {
 
     private var toolbar: some View {
         HStack(spacing: 10) {
-            // Search
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 11))
@@ -69,17 +73,15 @@ struct LibraryPane: View {
             .background(Color.primary.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            // Type filter
             Picker("", selection: $typeFilter) {
                 ForEach(TypeFilter.allCases, id: \.self) { filter in
                     Text(filter.rawValue).tag(filter)
                 }
             }
             .pickerStyle(.segmented)
-            .frame(width: 220)
+            .frame(width: 240)
             .labelsHidden()
 
-            // Sort
             Menu {
                 ForEach(SortOrder.allCases, id: \.self) { order in
                     Button(order.rawValue) { sortOrder = order }
@@ -95,19 +97,21 @@ struct LibraryPane: View {
             .menuStyle(.borderlessButton)
             .frame(width: 60)
 
-            // Import
-            Button {
-                runImport()
+            Menu {
+                Button("From files...") { runFileImport() }
+                Button("From URL...") { showingURLImport = true }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "plus")
                         .font(.system(size: 11))
                     Text("Import")
                         .font(.system(size: 12, weight: .medium))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9))
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
         }
         .padding(.bottom, 12)
     }
@@ -118,8 +122,7 @@ struct LibraryPane: View {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useMB, .useKB, .useGB]
         formatter.countStyle = .file
-        let sizeString = bytes > 0
-            ? formatter.string(fromByteCount: bytes) : "0 bytes"
+        let sizeString = bytes > 0 ? formatter.string(fromByteCount: bytes) : "0 bytes"
         return Text("\(count) wallpaper\(count == 1 ? "" : "s") · \(sizeString)")
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
@@ -141,11 +144,11 @@ struct LibraryPane: View {
                     isSelected: wallpaper.id == selectedID
                 )
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedID = wallpaper.id
-                }
+                .onTapGesture { selectedID = wallpaper.id }
                 .contextMenu {
-                    if wallpaper.kind != .builtInGradient {
+                    if wallpaper.kind == .builtInGradient {
+                        Text("Animated Gradient cannot be removed")
+                    } else {
                         Button(role: .destructive) {
                             library.remove(wallpaper)
                             if selectedID == wallpaper.id {
@@ -154,36 +157,48 @@ struct LibraryPane: View {
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
-                    } else {
-                        Text("Built-in wallpapers cannot be removed")
                     }
                 }
             }
         }
     }
 
+    private var restoreFooter: some View {
+        HStack {
+            Spacer()
+            Button {
+                library.restoreBuiltIns()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 11))
+                    Text("Restore built-in wallpapers")
+                        .font(.system(size: 11))
+                }
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.top, 18)
+    }
+
     private var filteredAndSorted: [Wallpaper] {
         var items = library.wallpapers
-
-        // Type filter
         switch typeFilter {
         case .all: break
         case .video: items = items.filter { $0.kind == .video }
-        case .image: items = items.filter { $0.kind == .image }
-        case .builtin: items = items.filter {
-                $0.kind == .builtInGradient
+        case .url: items = items.filter { $0.kind == .url }
+        case .builtin:
+            items = items.filter {
+                $0.kind == .builtInGradient || $0.kind == .procedural
             }
         }
-
-        // Search
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
         if !query.isEmpty {
             items = items.filter {
                 $0.name.localizedCaseInsensitiveContains(query)
             }
         }
-
-        // Sort
         switch sortOrder {
         case .recentlyAdded:
             items.sort { $0.addedDate > $1.addedDate }
@@ -195,11 +210,10 @@ struct LibraryPane: View {
         case .type:
             items.sort { $0.kind.rawValue < $1.kind.rawValue }
         }
-
         return items
     }
 
-    private func runImport() {
+    private func runFileImport() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseFiles = true
@@ -211,14 +225,10 @@ struct LibraryPane: View {
         ]
         panel.title = "Import wallpapers"
         panel.message = "Select MP4, MOV, or M4V files"
-
-        let response = panel.runModal()
-        guard response == .OK else { return }
-
+        guard panel.runModal() == .OK else { return }
         for url in panel.urls {
-            do {
-                _ = try library.importFile(at: url)
-            } catch let error as WallpaperImportError {
+            do { _ = try library.importFile(at: url) }
+            catch let error as WallpaperImportError {
                 importError = error.errorDescription
                 showingImportError = true
             } catch {
@@ -268,29 +278,61 @@ private struct WallpaperCard: View {
                     Color(red: 0.06, green: 0.10, blue: 0.22),
                     Color(red: 0.24, green: 0.06, blue: 0.12),
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
+        case .procedural:
+            proceduralGradient(for: wallpaper.proceduralKey ?? "")
         case .video:
-            // Phase 6: replace with real first-frame thumbnail
             LinearGradient(
                 colors: [
                     Color(red: 0.15, green: 0.18, blue: 0.30),
                     Color(red: 0.10, green: 0.12, blue: 0.18),
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+        case .url:
+            LinearGradient(
+                colors: [
+                    Color(red: 0.20, green: 0.14, blue: 0.26),
+                    Color(red: 0.10, green: 0.10, blue: 0.18),
+                ],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
         case .image:
             LinearGradient(
-                colors: [
-                    Color(red: 0.20, green: 0.20, blue: 0.20),
-                    Color(red: 0.10, green: 0.10, blue: 0.10),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [.gray.opacity(0.4), .gray.opacity(0.2)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
             )
         }
+    }
+
+    private func proceduralGradient(for key: String) -> LinearGradient {
+        let colors: [Color] = switch key {
+        case "aurora":
+            [
+                Color(red: 0.10, green: 0.30, blue: 0.40),
+                Color(red: 0.30, green: 0.10, blue: 0.45),
+            ]
+        case "matrix-rain":
+            [Color(red: 0.02, green: 0.18, blue: 0.05), .black]
+        case "synthwave":
+            [
+                Color(red: 0.85, green: 0.20, blue: 0.50),
+                Color(red: 0.10, green: 0.02, blue: 0.30),
+            ]
+        case "starfield":
+            [Color(red: 0.04, green: 0.04, blue: 0.10), .black]
+        case "neural-network":
+            [
+                Color(red: 0.10, green: 0.20, blue: 0.40),
+                Color(red: 0.04, green: 0.05, blue: 0.10),
+            ]
+        default: [.gray, .black]
+        }
+        return LinearGradient(
+            colors: colors,
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
     }
 
     private var typePill: some View {
@@ -311,7 +353,9 @@ private struct WallpaperCard: View {
     private var typeIcon: String {
         switch wallpaper.kind {
         case .builtInGradient: "sparkles"
+        case .procedural: "wand.and.stars"
         case .video: "play.fill"
+        case .url: "globe"
         case .image: "photo"
         }
     }
@@ -319,7 +363,9 @@ private struct WallpaperCard: View {
     private var typeLabel: String {
         switch wallpaper.kind {
         case .builtInGradient: "BUILT-IN"
+        case .procedural: "BUILT-IN"
         case .video: "VIDEO"
+        case .url: "URL"
         case .image: "IMAGE"
         }
     }
@@ -342,12 +388,11 @@ private struct WallpaperCard: View {
 
     private var metaLine: String {
         switch wallpaper.kind {
-        case .builtInGradient:
-            "Lightweight · Always available"
-        case .video:
-            wallpaper.fileSizeString ?? "Video"
-        case .image:
-            wallpaper.fileSizeString ?? "Still image"
+        case .builtInGradient: "Lightweight · Cannot be removed"
+        case .procedural: "Procedural · Zero MB"
+        case .video: wallpaper.fileSizeString ?? "Video"
+        case .url: wallpaper.urlHost ?? "Remote"
+        case .image: wallpaper.fileSizeString ?? "Still image"
         }
     }
 }

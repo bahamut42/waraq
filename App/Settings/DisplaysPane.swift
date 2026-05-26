@@ -69,9 +69,20 @@ struct DisplaysPane: View {
 
             Card {
                 ForEach(Array(displayManager.displays.enumerated()), id: \.element.id) { index, display in
-                    DisplayRow(display: display) {
-                        configuringDisplay = display
-                    }
+                    let settings = DisplaySettingsStore.settings(for: display.id)
+                    DisplayRow(
+                        display: display,
+                        enabled: settings.enabled,
+                        onToggleEnabled: { newValue in
+                            displayManager.setDisplayEnabled(
+                                displayID: display.id,
+                                enabled: newValue
+                            )
+                        },
+                        onConfigure: {
+                            configuringDisplay = display
+                        }
+                    )
                     if index < displayManager.displays.count - 1 {
                         Divider()
                     }
@@ -150,15 +161,20 @@ struct DisplaysPane: View {
 
 private struct DisplayRow: View {
     let display: DisplayManager.DisplayInfo
+    let enabled: Bool
+    let onToggleEnabled: (Bool) -> Void
     let onConfigure: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(LinearGradient(
-                    colors: [
+                    colors: enabled ? [
                         Color(red: 0.06, green: 0.10, blue: 0.22),
                         Color(red: 0.24, green: 0.06, blue: 0.12),
+                    ] : [
+                        Color.gray.opacity(0.4),
+                        Color.gray.opacity(0.2),
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -173,11 +189,13 @@ private struct DisplayRow: View {
                             lineWidth: display.isMain ? 1.5 : 0.5
                         )
                 )
+                .opacity(enabled ? 1.0 : 0.55)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(display.name)
                         .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(enabled ? .primary : .secondary)
                     if display.isMain {
                         Text("MAIN")
                             .font(.system(size: 9, weight: .medium))
@@ -198,21 +216,29 @@ private struct DisplayRow: View {
 
             HStack(spacing: 4) {
                 Circle()
-                    .fill(Color.green)
+                    .fill(enabled ? Color.green : Color.gray)
                     .frame(width: 5, height: 5)
-                Text("LIVE")
+                Text(enabled ? "LIVE" : "OFF")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(enabled ? .green : .secondary)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Color.green.opacity(0.15))
+            .background(
+                (enabled ? Color.green : Color.gray).opacity(0.15)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 4))
 
-            Button("Configure") {
-                onConfigure()
-            }
+            Toggle("", isOn: Binding(
+                get: { enabled },
+                set: { onToggleEnabled($0) }
+            ))
+            .toggleStyle(.switch)
             .controlSize(.small)
+            .labelsHidden()
+
+            Button("Configure") { onConfigure() }
+                .controlSize(.small)
         }
         .padding(.vertical, 11)
         .padding(.horizontal, 14)

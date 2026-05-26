@@ -1,12 +1,6 @@
 import Combine
 import Foundation
 
-/// Manages the wallpaper collection on disk and in memory.
-/// Persists imported wallpapers as `library.json`, copies imported
-/// files into the Library `Wallpapers/` directory.
-///
-/// The built-in animated gradient is always present as the first
-/// item and cannot be removed.
 @MainActor
 final class WallpaperLibrary: ObservableObject {
     static let shared = WallpaperLibrary()
@@ -23,8 +17,7 @@ final class WallpaperLibrary: ObservableObject {
         id: "com.bahamut.waraq.builtin.gradient",
         name: "Animated Gradient",
         kind: .builtInGradient,
-        addedDate: Date.distantPast,
-        relativePath: nil
+        addedDate: Date.distantPast
     )
 
     init() {
@@ -41,14 +34,12 @@ final class WallpaperLibrary: ObservableObject {
 
         try? FileManager.default.createDirectory(
             at: wallpapersDir,
-            withIntermediateDirectories: true,
-            attributes: nil
+            withIntermediateDirectories: true
         )
 
         load()
+        seedBuiltInsIfNeeded()
     }
-
-    // Public API
 
     func importFile(at sourceURL: URL) throws -> Wallpaper {
         let ext = sourceURL.pathExtension.lowercased()
@@ -77,27 +68,67 @@ final class WallpaperLibrary: ObservableObject {
         if name.isEmpty { name = "Untitled" }
 
         let wallpaper = Wallpaper(
-            id: id,
-            name: name,
-            kind: .video,
+            id: id, name: name, kind: .video,
             addedDate: Date(),
             relativePath: destFilename,
             fileSizeBytes: size
         )
+        wallpapers.append(wallpaper)
+        save()
+        return wallpaper
+    }
 
+    @discardableResult
+    func importURL(_ urlString: String, name: String) throws -> Wallpaper {
+        let trimmed = urlString.trimmingCharacters(in: .whitespaces)
+        guard URL(string: trimmed) != nil else {
+            throw WallpaperImportError.invalidURL(trimmed)
+        }
+
+        let wallpaper = Wallpaper(
+            id: UUID().uuidString,
+            name: name.isEmpty ? trimmed : name,
+            kind: .url,
+            addedDate: Date(),
+            urlString: trimmed
+        )
         wallpapers.append(wallpaper)
         save()
         return wallpaper
     }
 
     func remove(_ wallpaper: Wallpaper) {
+        // Animated Gradient can never be removed.
         guard wallpaper.kind != .builtInGradient else { return }
+
         if let rel = wallpaper.relativePath {
             let fileURL = wallpapersDir.appendingPathComponent(rel)
             try? FileManager.default.removeItem(at: fileURL)
         }
         wallpapers.removeAll { $0.id == wallpaper.id }
         save()
+
+        // If procedural built-in was removed, note it so reseed
+        // doesn't re-add it automatically. User can use "Restore"
+        // to bring them back explicitly.
+        if wallpaper.kind == .procedural,
+           let key = wallpaper.proceduralKey
+        {
+            var removed = removedProceduralKeys
+            removed.insert(key)
+            UserDefaults.standard.set(
+                Array(removed),
+                forKey: "removedProceduralKeys"
+            )
+        }
+    }
+
+    /// Re-seed any procedural built-ins the user previously deleted.
+    func restoreBuiltIns() {
+        UserDefaults.standard.removeObject(
+            forKey: "removedProceduralKeys"
+        )
+        seedBuiltInsIfNeeded(force: true)
     }
 
     func wallpaper(forID id: String) -> Wallpaper? {
@@ -113,7 +144,29 @@ final class WallpaperLibrary: ObservableObject {
         wallpapers.compactMap(\.fileSizeBytes).reduce(0, +)
     }
 
-    // Persistence
+    // Internal
+
+    private var removedProceduralKeys: Set<String> {
+        Set(UserDefaults.standard.array(
+            forKey: "removedProceduralKeys"
+        ) as? [String] ?? [])
+    }
+
+    private func seedBuiltInsIfNeeded(force: Bool = false) {
+        let existing = Set(wallpapers.map(\.id))
+        let removed = removedProceduralKeys
+
+        for builtIn in ProceduralFactory.allBuiltIns {
+            if existing.contains(builtIn.id) { continue }
+            if !force, let key = builtIn.proceduralKey,
+               removed.contains(key)
+            {
+                continue
+            }
+            wallpapers.append(builtIn)
+        }
+        save()
+    }
 
     private func load() {
         var all: [Wallpaper] = [Self.builtInGradient]
@@ -123,13 +176,17 @@ final class WallpaperLibrary: ObservableObject {
                [Wallpaper].self, from: data
            )
         {
-            // Verify files still exist; drop missing entries.
             for wallpaper in imported {
-                if let rel = wallpaper.relativePath {
-                    let url = wallpapersDir.appendingPathComponent(rel)
-                    if FileManager.default.fileExists(atPath: url.path) {
-                        all.append(wallpaper)
+                // Validate file existence for file-backed kinds
+                if wallpaper.kind == .video || wallpaper.kind == .image {
+                    if let rel = wallpaper.relativePath {
+                        let url = wallpapersDir.appendingPathComponent(rel)
+                        if FileManager.default.fileExists(atPath: url.path) {
+                            all.append(wallpaper)
+                        }
                     }
+                } else {
+                    all.append(wallpaper)
                 }
             }
         }
@@ -137,10 +194,10 @@ final class WallpaperLibrary: ObservableObject {
     }
 
     private func save() {
-        let imported = wallpapers.filter {
+        let serializable = wallpapers.filter {
             $0.kind != .builtInGradient
         }
-        if let data = try? JSONEncoder().encode(imported) {
+        if let data = try? JSONEncoder().encode(serializable) {
             try? data.write(to: manifestURL)
         }
     }
