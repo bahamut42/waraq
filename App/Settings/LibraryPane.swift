@@ -11,6 +11,7 @@ struct LibraryPane: View {
     @State private var importError: String?
     @State private var showingImportError: Bool = false
     @State private var showingGifImport: Bool = false
+    @State private var isDropTargeted: Bool = false
 
     enum TypeFilter: String, CaseIterable {
         case all = "All"
@@ -45,6 +46,100 @@ struct LibraryPane: View {
         )
         .sheet(isPresented: $showingGifImport) {
             GifImportSheet()
+        }
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            handleDrop(providers: providers)
+        }
+        .overlay(dropTargetOverlay)
+    }
+
+    @ViewBuilder
+    private var dropTargetOverlay: some View {
+        if isDropTargeted {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.accentColor, lineWidth: 3)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(0.06))
+                )
+                .padding(8)
+                .allowsHitTesting(false)
+                .overlay(
+                    VStack(spacing: 8) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(Color.accentColor)
+                        Text("Drop to import")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .padding(20)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .allowsHitTesting(false)
+                )
+        }
+    }
+
+    private func handleDrop(providers: [NSItemProvider]) -> Bool {
+        var anyHandled = false
+        for provider in providers where provider.canLoadObject(ofClass: URL.self) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                Task { @MainActor in
+                    self.importDroppedURL(url)
+                }
+            }
+            anyHandled = true
+        }
+        return anyHandled
+    }
+
+    private func importDroppedURL(_ url: URL) {
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(
+            atPath: url.path, isDirectory: &isDir
+        )
+        guard exists else { return }
+        if isDir.boolValue {
+            let imported = library.importFolder(at: url)
+            if imported.isEmpty {
+                importError = "No video or GIF files found in that folder."
+                showingImportError = true
+            }
+        } else {
+            let ext = url.pathExtension.lowercased()
+            guard WallpaperLibrary.supportedAllExtensions.contains(ext) else {
+                importError = "Unsupported file type: .\(ext)"
+                showingImportError = true
+                return
+            }
+            do { _ = try library.importFile(at: url) }
+            catch let e as WallpaperImportError {
+                importError = e.errorDescription
+                showingImportError = true
+            } catch {
+                importError = error.localizedDescription
+                showingImportError = true
+            }
+        }
+    }
+
+    private func setCustomThumbnail(for wallpaper: Wallpaper) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.jpeg, .png, .heic, .image]
+        panel.title = "Choose custom thumbnail"
+        panel.message = "Pick a JPG, PNG, or HEIC image. It will be resized to 480x300 maximum."
+        guard panel.runModal() == .OK,
+              let url = panel.url else { return }
+        do {
+            try library.setCustomThumbnail(from: url, for: wallpaper)
+        } catch {
+            importError = error.localizedDescription
+            showingImportError = true
         }
     }
 
@@ -151,6 +246,15 @@ struct LibraryPane: View {
                 .contentShape(Rectangle())
                 .onTapGesture { selectedID = wallpaper.id }
                 .contextMenu {
+                    Button("Set Custom Thumbnail...") {
+                        setCustomThumbnail(for: wallpaper)
+                    }
+                    if library.hasCustomThumbnail(for: wallpaper) {
+                        Button("Reset to Auto Thumbnail") {
+                            library.clearCustomThumbnail(for: wallpaper)
+                        }
+                    }
+                    Divider()
                     if wallpaper.kind == .builtInGradient {
                         Text("Animated Gradient cannot be removed")
                     } else {
@@ -315,9 +419,9 @@ private struct WallpaperCard: View {
 
     @ViewBuilder
     private var thumbnail: some View {
-        if library.hasThumbnail(for: wallpaper),
+        if library.hasAnyThumbnail(for: wallpaper),
            let nsImage = NSImage(
-               contentsOf: library.thumbnailURL(for: wallpaper)
+               contentsOf: library.displayThumbnailURL(for: wallpaper)
            )
         {
             Image(nsImage: nsImage)

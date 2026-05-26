@@ -142,24 +142,20 @@ final class DisplayManager: ObservableObject {
         if let hardwareID = DisplayHardwareID(displayID: id) {
             if let profile = DisplayProfileStore.profile(for: hardwareID) {
                 // Known display: apply saved according to user
-                // preference. "askEachTime" treated as "applyDefault"
-                // in Phase 8 (dialog deferred to Phase 9).
+                // preference.
                 let policy = UserDefaults.standard.string(
                     forKey: "onKnownDisplay"
                 ) ?? "applySaved"
 
                 switch policy {
                 case "applySaved":
-                    settings = profile.settings
-                    if let w = library.wallpaper(forID: profile.wallpaperID) {
-                        wallpaper = w
-                    } else {
-                        wallpaper = library.wallpapers.first
-                            ?? WallpaperLibrary.builtInGradient
-                    }
-                    // Sync into displayID-keyed cache for live updates.
-                    DisplaySettingsStore.save(settings, for: id)
-                    cacheAssignment(wallpaperID: wallpaper.id, displayID: id)
+                    (wallpaper, settings) = applySavedProfile(
+                        profile, displayID: id
+                    )
+                case "askEachTime":
+                    (wallpaper, settings) = askKnownDisplayChoice(
+                        profile: profile, displayID: id, screen: screen
+                    )
                 default: // applyDefault
                     settings = DisplaySettingsStore.settings(for: id)
                     wallpaper = wallpaperToSpawn(for: id)
@@ -169,9 +165,15 @@ final class DisplayManager: ObservableObject {
                 let policy = UserDefaults.standard.string(
                     forKey: "onNewDisplay"
                 ) ?? "applyDefault"
-                _ = policy // Same fallback for both options currently.
-                settings = DisplaySettingsStore.settings(for: id)
-                wallpaper = wallpaperToSpawn(for: id)
+                switch policy {
+                case "askEachTime":
+                    (wallpaper, settings) = askNewDisplayChoice(
+                        displayID: id, screen: screen
+                    )
+                default:
+                    settings = DisplaySettings.default
+                    wallpaper = wallpaperToSpawn(for: id)
+                }
             }
         } else {
             // Display has no hardware ID. Fall back to legacy
@@ -184,13 +186,33 @@ final class DisplayManager: ObservableObject {
         guard settings.enabled else { return }
 
         let window = WallpaperWindow(for: screen)
+        installWallpaper(wallpaper, settings: settings, into: window, id: id)
 
+        window.orderFront(nil)
+        windows[id] = window
+
+        // Persist a profile snapshot after spawn (so reconnects
+        // restore the last-applied state).
+        saveProfile(
+            displayID: id,
+            screen: screen,
+            wallpaperID: wallpaper.id,
+            settings: settings
+        )
+    }
+
+    /// Build the correct engine for a wallpaper kind and install it
+    /// into the window's content view, falling back to the gradient
+    /// when a media file is missing or the kind is unsupported.
+    private func installWallpaper(
+        _ wallpaper: Wallpaper,
+        settings: DisplaySettings,
+        into window: WallpaperWindow,
+        id: CGDirectDisplayID
+    ) {
         switch wallpaper.kind {
         case .builtInGradient:
-            let gradient = GradientWallpaper()
-            window.install(layer: gradient.layer)
-            gradients[id] = gradient
-            if isPaused { gradient.setPaused(true) }
+            installGradient(into: window, id: id)
 
         case .procedural:
             if let key = wallpaper.proceduralKey,
@@ -199,9 +221,7 @@ final class DisplayManager: ObservableObject {
                 window.install(view: view)
                 proceduralViews[id] = view
             } else {
-                let gradient = GradientWallpaper()
-                window.install(layer: gradient.layer)
-                gradients[id] = gradient
+                installGradient(into: window, id: id)
             }
 
         case .video:
@@ -217,62 +237,133 @@ final class DisplayManager: ObservableObject {
                 if !isPaused { engine.play() }
                 videoEngines[id] = engine
             } else {
-                let gradient = GradientWallpaper()
-                window.install(layer: gradient.layer)
-                gradients[id] = gradient
+                installGradient(into: window, id: id)
             }
 
         case .gif:
             if let fileURL = library.fileURL(for: wallpaper) {
-                let engine = GifEngine(
-                    source: .localFile(fileURL),
-                    fitMode: settings.fitMode
+                installGif(
+                    .localFile(fileURL),
+                    settings: settings,
+                    into: window,
+                    id: id
                 )
-                window.install(view: engine.view)
-                if !isPaused { engine.play() }
-                gifEngines[id] = engine
             } else {
-                let gradient = GradientWallpaper()
-                window.install(layer: gradient.layer)
-                gradients[id] = gradient
+                installGradient(into: window, id: id)
             }
 
         case .gifURL:
             if let str = wallpaper.urlString,
                let url = URL(string: str)
             {
-                let engine = GifEngine(
-                    source: .remoteURL(url),
-                    fitMode: settings.fitMode
+                installGif(
+                    .remoteURL(url),
+                    settings: settings,
+                    into: window,
+                    id: id
                 )
-                window.install(view: engine.view)
-                if !isPaused { engine.play() }
-                gifEngines[id] = engine
             } else {
-                let gradient = GradientWallpaper()
-                window.install(layer: gradient.layer)
-                gradients[id] = gradient
+                installGradient(into: window, id: id)
             }
 
         case .image, .url:
             // .url is deprecated and filtered on library load,
             // but handle gracefully as fallback.
-            let gradient = GradientWallpaper()
-            window.install(layer: gradient.layer)
-            gradients[id] = gradient
+            installGradient(into: window, id: id)
         }
+    }
 
-        window.orderFront(nil)
-        windows[id] = window
+    private func installGradient(
+        into window: WallpaperWindow, id: CGDirectDisplayID
+    ) {
+        let gradient = GradientWallpaper()
+        window.install(layer: gradient.layer)
+        gradients[id] = gradient
+        if isPaused { gradient.setPaused(true) }
+    }
 
-        // Persist a profile snapshot after spawn (so reconnects
-        // restore the last-applied state).
-        saveProfile(
-            displayID: id,
-            screen: screen,
-            wallpaperID: wallpaper.id,
-            settings: settings
-        )
+    private func installGif(
+        _ source: GifEngine.Source,
+        settings: DisplaySettings,
+        into window: WallpaperWindow,
+        id: CGDirectDisplayID
+    ) {
+        let engine = GifEngine(source: source, fitMode: settings.fitMode)
+        window.install(view: engine.view)
+        if !isPaused { engine.play() }
+        gifEngines[id] = engine
+    }
+
+    private func applySavedProfile(
+        _ profile: DisplayProfile, displayID: CGDirectDisplayID
+    ) -> (Wallpaper, DisplaySettings) {
+        let settings = profile.settings
+        let wallpaper: Wallpaper = if let w = library.wallpaper(forID: profile.wallpaperID) {
+            w
+        } else {
+            library.wallpapers.first
+                ?? WallpaperLibrary.builtInGradient
+        }
+        DisplaySettingsStore.save(settings, for: displayID)
+        cacheAssignment(wallpaperID: wallpaper.id, displayID: displayID)
+        return (wallpaper, settings)
+    }
+
+    private func askKnownDisplayChoice(
+        profile: DisplayProfile,
+        displayID: CGDirectDisplayID,
+        screen: NSScreen
+    ) -> (Wallpaper, DisplaySettings) {
+        let alert = NSAlert()
+        alert.messageText = "Display reconnected: \(screen.localizedName)"
+        let savedName = library.wallpaper(
+            forID: profile.wallpaperID
+        )?.name ?? "previous wallpaper"
+        alert.informativeText = "Waraq has a saved wallpaper for this display (\(savedName)). What would you like to apply?"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Use saved")
+        alert.addButton(withTitle: "Use default")
+        alert.addButton(withTitle: "Decide later")
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn: // Use saved
+            return applySavedProfile(profile, displayID: displayID)
+        case .alertSecondButtonReturn: // Use default
+            let settings = DisplaySettings.default
+            DisplaySettingsStore.save(settings, for: displayID)
+            let wallpaper = wallpaperToSpawn(for: displayID)
+            return (wallpaper, settings)
+        default: // Decide later -> apply saved as the safe fallback
+            return applySavedProfile(profile, displayID: displayID)
+        }
+    }
+
+    private func askNewDisplayChoice(
+        displayID: CGDirectDisplayID,
+        screen: NSScreen
+    ) -> (Wallpaper, DisplaySettings) {
+        let alert = NSAlert()
+        alert.messageText = "New display detected: \(screen.localizedName)"
+        alert.informativeText = "Apply your default wallpaper, or skip and configure later?"
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Apply default")
+        alert.addButton(withTitle: "Skip for now")
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn: // Apply default
+            let settings = DisplaySettings.default
+            DisplaySettingsStore.save(settings, for: displayID)
+            let wallpaper = wallpaperToSpawn(for: displayID)
+            return (wallpaper, settings)
+        default: // Skip for now -> disabled display
+            var s = DisplaySettings.default
+            s.enabled = false
+            DisplaySettingsStore.save(s, for: displayID)
+            let wallpaper = WallpaperLibrary.builtInGradient
+            return (wallpaper, s)
+        }
     }
 
     private func cacheAssignment(

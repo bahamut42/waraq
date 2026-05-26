@@ -161,6 +161,9 @@ final class WallpaperLibrary: ObservableObject {
             try? FileManager.default.removeItem(at: fileURL)
         }
         try? FileManager.default.removeItem(at: thumbnailURL(for: wallpaper))
+        try? FileManager.default.removeItem(
+            at: customThumbnailURL(for: wallpaper)
+        )
         wallpapers.removeAll { $0.id == wallpaper.id }
         save()
 
@@ -206,6 +209,88 @@ final class WallpaperLibrary: ObservableObject {
         FileManager.default.fileExists(
             atPath: thumbnailURL(for: wallpaper).path
         )
+    }
+
+    func customThumbnailURL(for wallpaper: Wallpaper) -> URL {
+        thumbnailsDir.appendingPathComponent("\(wallpaper.id).custom.jpg")
+    }
+
+    func hasCustomThumbnail(for wallpaper: Wallpaper) -> Bool {
+        FileManager.default.fileExists(
+            atPath: customThumbnailURL(for: wallpaper).path
+        )
+    }
+
+    /// Returns the URL of the thumbnail to display: custom if set,
+    /// otherwise auto-generated.
+    func displayThumbnailURL(for wallpaper: Wallpaper) -> URL {
+        let custom = customThumbnailURL(for: wallpaper)
+        if FileManager.default.fileExists(atPath: custom.path) {
+            return custom
+        }
+        return thumbnailURL(for: wallpaper)
+    }
+
+    func hasAnyThumbnail(for wallpaper: Wallpaper) -> Bool {
+        hasCustomThumbnail(for: wallpaper) || hasThumbnail(for: wallpaper)
+    }
+
+    func setCustomThumbnail(
+        from imageURL: URL, for wallpaper: Wallpaper
+    ) throws {
+        guard let nsImage = NSImage(contentsOf: imageURL) else {
+            throw NSError(
+                domain: "Waraq", code: 1,
+                userInfo: [NSLocalizedDescriptionKey:
+                    "Could not read image file."]
+            )
+        }
+        let resized = resize(image: nsImage, maxSize: NSSize(
+            width: 480, height: 300
+        ))
+        guard let tiff = resized.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let jpeg = rep.representation(
+                  using: .jpeg, properties: [.compressionFactor: 0.85]
+              ) else
+        {
+            throw NSError(
+                domain: "Waraq", code: 2,
+                userInfo: [NSLocalizedDescriptionKey:
+                    "Could not encode JPEG."]
+            )
+        }
+        try jpeg.write(
+            to: customThumbnailURL(for: wallpaper),
+            options: .atomic
+        )
+        objectWillChange.send()
+    }
+
+    func clearCustomThumbnail(for wallpaper: Wallpaper) {
+        let url = customThumbnailURL(for: wallpaper)
+        try? FileManager.default.removeItem(at: url)
+        objectWillChange.send()
+    }
+
+    private func resize(image: NSImage, maxSize: NSSize) -> NSImage {
+        let originalSize = image.size
+        let widthRatio = maxSize.width / originalSize.width
+        let heightRatio = maxSize.height / originalSize.height
+        let ratio = min(widthRatio, heightRatio, 1.0)
+        let newSize = NSSize(
+            width: originalSize.width * ratio,
+            height: originalSize.height * ratio
+        )
+        let resized = NSImage(size: newSize)
+        resized.lockFocus()
+        image.draw(
+            in: NSRect(origin: .zero, size: newSize),
+            from: NSRect(origin: .zero, size: originalSize),
+            operation: .copy, fraction: 1.0
+        )
+        resized.unlockFocus()
+        return resized
     }
 
     var totalSizeBytes: Int64 {

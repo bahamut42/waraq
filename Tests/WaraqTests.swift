@@ -385,6 +385,33 @@ final class WaraqTests: XCTestCase {
     }
 
     @MainActor
+    func testDisplaySettingsDefaultReadsUserDefaults() {
+        UserDefaults.standard.set("fit", forKey: "defaultFitMode")
+        UserDefaults.standard.set(false, forKey: "defaultMuted")
+        UserDefaults.standard.set(false, forKey: "defaultLoop")
+        defer {
+            UserDefaults.standard.removeObject(forKey: "defaultFitMode")
+            UserDefaults.standard.removeObject(forKey: "defaultMuted")
+            UserDefaults.standard.removeObject(forKey: "defaultLoop")
+        }
+        let d = DisplaySettings.default
+        XCTAssertEqual(d.fitMode, .fit)
+        XCTAssertFalse(d.muted)
+        XCTAssertFalse(d.loop)
+    }
+
+    @MainActor
+    func testCustomThumbnailPathDistinct() {
+        let library = WallpaperLibrary()
+        let w = WallpaperLibrary.builtInGradient
+        let auto = library.thumbnailURL(for: w)
+        let custom = library.customThumbnailURL(for: w)
+        XCTAssertNotEqual(auto, custom)
+        XCTAssertTrue(custom.path.contains(".custom.jpg"))
+        XCTAssertFalse(library.hasCustomThumbnail(for: w))
+    }
+
+    @MainActor
     func testWallpaperEngineImporterRejectsUnsupportedType() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(

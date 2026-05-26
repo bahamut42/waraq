@@ -36,7 +36,21 @@ struct DisplaySettings: Codable, Equatable {
         }
     }
 
-    static let `default` = DisplaySettings()
+    static var `default`: DisplaySettings {
+        var s = DisplaySettings()
+        if let raw = UserDefaults.standard.string(forKey: "defaultFitMode"),
+           let mode = FitMode(rawValue: raw)
+        {
+            s.fitMode = mode
+        }
+        if UserDefaults.standard.object(forKey: "defaultMuted") != nil {
+            s.muted = UserDefaults.standard.bool(forKey: "defaultMuted")
+        }
+        if UserDefaults.standard.object(forKey: "defaultLoop") != nil {
+            s.loop = UserDefaults.standard.bool(forKey: "defaultLoop")
+        }
+        return s
+    }
 }
 
 enum DisplaySettingsStore {
