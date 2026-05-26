@@ -7,6 +7,8 @@ struct DisplaysPane: View {
     @AppStorage("onKnownDisplay") private var onKnown: String = "restoreProfile"
     @AppStorage("onNewDisplay") private var onNew: String = "askMe"
 
+    @State private var configuringDisplay: DisplayManager.DisplayInfo?
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -22,6 +24,10 @@ struct DisplaysPane: View {
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
+        }
+        .sheet(item: $configuringDisplay) { display in
+            DisplayConfigSheet(display: display)
+                .environmentObject(displayManager)
         }
     }
 
@@ -63,7 +69,9 @@ struct DisplaysPane: View {
 
             Card {
                 ForEach(Array(displayManager.displays.enumerated()), id: \.element.id) { index, display in
-                    DisplayRow(display: display)
+                    DisplayRow(display: display) {
+                        configuringDisplay = display
+                    }
                     if index < displayManager.displays.count - 1 {
                         Divider()
                     }
@@ -142,6 +150,7 @@ struct DisplaysPane: View {
 
 private struct DisplayRow: View {
     let display: DisplayManager.DisplayInfo
+    let onConfigure: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -199,6 +208,11 @@ private struct DisplayRow: View {
             .padding(.vertical, 2)
             .background(Color.green.opacity(0.15))
             .clipShape(RoundedRectangle(cornerRadius: 4))
+
+            Button("Configure") {
+                onConfigure()
+            }
+            .controlSize(.small)
         }
         .padding(.vertical, 11)
         .padding(.horizontal, 14)

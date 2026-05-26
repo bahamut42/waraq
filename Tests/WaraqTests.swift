@@ -187,4 +187,67 @@ final class WaraqTests: XCTestCase {
         ]
         XCTAssertTrue(validLabels.contains(gov.thermalStateLabel))
     }
+
+    @MainActor
+    func testWallpaperLibraryHasBuiltIn() {
+        let library = WallpaperLibrary()
+        XCTAssertFalse(library.wallpapers.isEmpty)
+        let builtIn = library.wallpapers.first {
+            $0.kind == .builtInGradient
+        }
+        XCTAssertNotNil(
+            builtIn,
+            "Library should always include built-in gradient"
+        )
+        XCTAssertEqual(
+            builtIn?.id,
+            WallpaperLibrary.builtInGradient.id
+        )
+    }
+
+    @MainActor
+    func testWallpaperLibraryRejectsUnsupportedFormat() {
+        let library = WallpaperLibrary()
+        let url = URL(fileURLWithPath: "/tmp/fake.txt")
+        XCTAssertThrowsError(try library.importFile(at: url)) { error in
+            guard let importError = error as? WallpaperImportError else {
+                XCTFail("Expected WallpaperImportError, got \(error)")
+                return
+            }
+            switch importError {
+            case .unsupportedFormat: break
+            default: XCTFail("Expected unsupportedFormat, got \(importError)")
+            }
+        }
+    }
+
+    @MainActor
+    func testWallpaperLibraryCannotRemoveBuiltIn() {
+        let library = WallpaperLibrary()
+        let before = library.wallpapers.count
+        library.remove(WallpaperLibrary.builtInGradient)
+        XCTAssertEqual(
+            library.wallpapers.count,
+            before,
+            "Built-in should be unaffected by remove"
+        )
+    }
+
+    func testWallpaperEncodesAndDecodes() throws {
+        let wallpaper = Wallpaper(
+            id: "test-id",
+            name: "Test",
+            kind: .video,
+            addedDate: Date(timeIntervalSince1970: 1000),
+            relativePath: "test.mp4",
+            fileSizeBytes: 1024
+        )
+        let data = try JSONEncoder().encode(wallpaper)
+        let decoded = try JSONDecoder().decode(
+            Wallpaper.self, from: data
+        )
+        XCTAssertEqual(decoded.id, wallpaper.id)
+        XCTAssertEqual(decoded.kind, .video)
+        XCTAssertEqual(decoded.fileSizeBytes, 1024)
+    }
 }

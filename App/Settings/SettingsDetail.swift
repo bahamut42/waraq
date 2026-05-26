@@ -12,11 +12,7 @@ struct SettingsDetail: View {
             case .displays:
                 DisplaysPane(isAdvanced: isAdvanced)
             case .library:
-                PlaceholderPane(
-                    title: "Library",
-                    phase: "Phase 5",
-                    summary: "Browse, import, and manage your animated wallpapers."
-                )
+                LibraryPane()
             case .performance:
                 PerformancePane(isAdvanced: isAdvanced)
             case .wallpapers:
