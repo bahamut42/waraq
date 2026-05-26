@@ -56,9 +56,9 @@ Card with two rows.
 - Title: "Bahamüt" at 13 pt weight 500
 - Sublabel: "Design, code, and the bird that wouldn't shut up" at
   11 pt `secondaryLabelColor`
-- Trailing: link "Niiro92Othman" with leading GitHub icon at 14 pt,
+- Trailing: link "bahamut42" with leading GitHub icon at 14 pt,
   text 12 pt `systemBlue`, clickable, opens
-  `https://github.com/Niiro92Othman`
+  `https://github.com/bahamut42`
 
 **Row 2: Built on the shoulders of**
 - Layout: title line + tag chips
@@ -89,13 +89,13 @@ and trailing `arrow.up.right.square` at 13 pt `tertiaryLabelColor`.
   asset if available)
 - Title: "Source on GitHub"
 - Sublabel: "Star, fork, or contribute"
-- URL: https://github.com/Niiro92Othman/waraq
+- URL: https://github.com/bahamut42/waraq
 
 **Row 2: Report a bug**
 - Icon: `ant` 16 pt
 - Title: "Report a bug"
 - No sublabel
-- URL: https://github.com/Niiro92Othman/waraq/issues/new
+- URL: https://github.com/bahamut42/waraq/issues/new
 
 **Row 3: Sponsor development**
 - Icon: `heart` 16 pt in soft pink (`#ffaaaa` dark / `#ff6688` light)
@@ -107,7 +107,7 @@ and trailing `arrow.up.right.square` at 13 pt `tertiaryLabelColor`.
 - Icon: `doc.text` 16 pt
 - Title: "License (MIT)"
 - No sublabel
-- URL: https://github.com/Niiro92Othman/waraq/blob/main/LICENSE
+- URL: https://github.com/bahamut42/waraq/blob/main/LICENSE
 
 ### Copyright footer
 

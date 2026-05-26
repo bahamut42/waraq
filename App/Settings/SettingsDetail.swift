@@ -14,15 +14,11 @@ struct SettingsDetail: View {
             case .library:
                 PlaceholderPane(
                     title: "Library",
-                    phase: "Phase 4",
+                    phase: "Phase 5",
                     summary: "Browse, import, and manage your animated wallpapers."
                 )
             case .performance:
-                PlaceholderPane(
-                    title: "Performance",
-                    phase: "Phase 4",
-                    summary: "Battery, thermal, and fullscreen-aware playback governor."
-                )
+                PerformancePane(isAdvanced: isAdvanced)
             case .wallpapers:
                 PlaceholderPane(
                     title: "Wallpapers",

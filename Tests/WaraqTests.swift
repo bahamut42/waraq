@@ -148,4 +148,43 @@ final class WaraqTests: XCTestCase {
         XCTAssertTrue(PaneID.general.isVisible(advanced: false))
         XCTAssertTrue(PaneID.general.isVisible(advanced: true))
     }
+
+    @MainActor
+    func testResourceMonitorReportsValues() {
+        _ = ResourceMonitor()
+        let mem = ResourceMonitor.residentMemoryMB()
+        XCTAssertGreaterThan(mem, 0, "Memory reading should be positive")
+        // CPU may be 0 in test environment, just verify it does not throw
+        _ = ResourceMonitor.processCPUPercent()
+    }
+
+    @MainActor
+    func testPerformanceGovernorInitializes() {
+        let gov = PerformanceGovernor()
+        XCTAssertNotNil(gov)
+        // isPortable can be either; just check the property exists
+        _ = gov.isPortable
+        // perDisplayState should have an entry per current screen
+        XCTAssertEqual(
+            gov.perDisplayState.count,
+            NSScreen.screens.compactMap {
+                $0.deviceDescription[
+                    NSDeviceDescriptionKey("NSScreenNumber")
+                ] as? CGDirectDisplayID
+            }.count
+        )
+    }
+
+    @MainActor
+    func testPerformanceGovernorThermalLabel() {
+        let gov = PerformanceGovernor()
+        let validLabels = [
+            "Nominal",
+            "Fair",
+            "Serious",
+            "Critical",
+            "Unknown",
+        ]
+        XCTAssertTrue(validLabels.contains(gov.thermalStateLabel))
+    }
 }

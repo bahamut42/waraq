@@ -2,7 +2,7 @@
 
 Status: v1.0 locked (2026-05-26)
 Project: Waraq (formerly Murmur), native macOS animated wallpaper app
-Repo: github.com/Niiro92Othman/waraq
+Repo: github.com/bahamut42/waraq
 
 ## Purpose
 

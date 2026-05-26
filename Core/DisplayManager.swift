@@ -16,11 +16,15 @@ final class DisplayManager: ObservableObject {
     @Published private(set) var isPaused: Bool = false
     @Published private(set) var isMuted: Bool = true
 
+    let governor: PerformanceGovernor
+    let resourceMonitor: ResourceMonitor
+
     private var windows: [CGDirectDisplayID: WallpaperWindow] = [:]
     private var videoEngines: [CGDirectDisplayID: VideoEngine] = [:]
     private var gradients: [CGDirectDisplayID: GradientWallpaper] = [:]
 
     private var screenObserver: NSObjectProtocol?
+    private var governorCancellable: AnyCancellable?
 
     struct DisplayInfo: Identifiable, Equatable {
         let id: CGDirectDisplayID
@@ -31,6 +35,9 @@ final class DisplayManager: ObservableObject {
     }
 
     init() {
+        governor = PerformanceGovernor()
+        resourceMonitor = ResourceMonitor()
+
         syncDisplays()
 
         screenObserver = NotificationCenter.default.addObserver(
@@ -40,6 +47,38 @@ final class DisplayManager: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.syncDisplays()
+                self?.governor.refreshState()
+            }
+        }
+
+        // React to governor state changes by play/pause/throttle.
+        governorCancellable = governor.$perDisplayState
+            .receive(on: RunLoop.main)
+            .sink { [weak self] newState in
+                Task { @MainActor in
+                    self?.applyGovernorState(newState)
+                }
+            }
+
+        resourceMonitor.start()
+    }
+
+    private func applyGovernorState(
+        _ state: [CGDirectDisplayID: PerformanceGovernor.PlaybackState]
+    ) {
+        // Don't override manual pause from menu bar.
+        guard !isPaused else { return }
+
+        for (id, target) in state {
+            switch target {
+            case .playing:
+                videoEngines[id]?.play()
+                gradients[id]?.setPaused(false)
+            case .paused, .throttled:
+                // Phase 4 simplification: throttled treated as
+                // paused. Future phases will halve FPS instead.
+                videoEngines[id]?.pause()
+                gradients[id]?.setPaused(true)
             }
         }
     }
