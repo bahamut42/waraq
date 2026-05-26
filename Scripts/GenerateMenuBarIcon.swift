@@ -1,123 +1,115 @@
-#!/usr/bin/env swift
-
+#!/usr/bin/swift
 import AppKit
 import Foundation
 
-func drawMenuBarIcon(size: CGFloat) -> NSBitmapImageRep {
-    let pixels = Int(size)
-    let rep = NSBitmapImageRep(
+let outputDir = "Resources/Assets.xcassets/MenuBarIcon.imageset"
+let sizes: [(filename: String, pixels: Int)] = [
+    ("menubar.png", 22),
+    ("menubar@2x.png", 44),
+]
+
+/// Crumpled silhouette - 14 vertices, irregular polygon reading
+/// as crumpled paper at 22px. Normalized 0..1, y from top.
+let outline: [(CGFloat, CGFloat)] = [
+    (0.18, 0.30),
+    (0.32, 0.10),
+    (0.50, 0.16),
+    (0.66, 0.08),
+    (0.84, 0.22),
+    (0.90, 0.42),
+    (0.82, 0.56),
+    (0.92, 0.72),
+    (0.78, 0.90),
+    (0.56, 0.86),
+    (0.40, 0.92),
+    (0.20, 0.86),
+    (0.10, 0.66),
+    (0.16, 0.48),
+]
+
+/// One internal crease line, only drawn at 44px where it's visible
+let crease: ((CGFloat, CGFloat), (CGFloat, CGFloat)) =
+    ((0.30, 0.28), (0.72, 0.66))
+
+func makeContext(size: Int) -> (NSBitmapImageRep, NSGraphicsContext)? {
+    guard let rep = NSBitmapImageRep(
         bitmapDataPlanes: nil,
-        pixelsWide: pixels,
-        pixelsHigh: pixels,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .calibratedRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    )!
+        pixelsWide: size, pixelsHigh: size,
+        bitsPerSample: 8, samplesPerPixel: 4,
+        hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: size * 4, bitsPerPixel: 32
+    ) else { return nil }
+    rep.size = NSSize(width: size, height: size)
+    guard let ctx = NSGraphicsContext(bitmapImageRep: rep) else {
+        return nil
+    }
+    return (rep, ctx)
+}
+
+func pt(_ x: CGFloat, _ y: CGFloat, size s: CGFloat) -> NSPoint {
+    NSPoint(x: x * s, y: (1 - y) * s)
+}
+
+func drawIcon(size: Int) -> NSBitmapImageRep? {
+    guard let (rep, ctx) = makeContext(size: size) else { return nil }
 
     NSGraphicsContext.saveGraphicsState()
-    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    NSGraphicsContext.current = ctx
 
+    let s = CGFloat(size)
+
+    // Solid black template
     NSColor.black.setFill()
-    let scale = size / 22.0 // design at 22pt
 
-    // Body
-    let body = NSBezierPath()
-    body.move(to: CGPoint(x: 8 * scale, y: 9 * scale))
-    body.curve(
-        to: CGPoint(x: 17 * scale, y: 9 * scale),
-        controlPoint1: CGPoint(x: 10 * scale, y: 5 * scale),
-        controlPoint2: CGPoint(x: 16 * scale, y: 5 * scale)
-    )
-    body.curve(
-        to: CGPoint(x: 18 * scale, y: 11 * scale),
-        controlPoint1: CGPoint(x: 18 * scale, y: 10 * scale),
-        controlPoint2: CGPoint(x: 18.5 * scale, y: 10.5 * scale)
-    )
-    body.curve(
-        to: CGPoint(x: 8 * scale, y: 9 * scale),
-        controlPoint1: CGPoint(x: 15 * scale, y: 13 * scale),
-        controlPoint2: CGPoint(x: 10 * scale, y: 11 * scale)
-    )
-    body.close()
-    body.fill()
+    let path = NSBezierPath()
+    path.move(to: pt(outline[0].0, outline[0].1, size: s))
+    for vertex in outline.dropFirst() {
+        path.line(to: pt(vertex.0, vertex.1, size: s))
+    }
+    path.close()
+    path.fill()
 
-    // Head
-    let headR = 3.0 * scale
-    let headCenter = CGPoint(x: 9 * scale, y: 12 * scale)
-    NSBezierPath(ovalIn: NSRect(
-        x: headCenter.x - headR,
-        y: headCenter.y - headR,
-        width: headR * 2,
-        height: headR * 2
-    )).fill()
-
-    // Beak
-    let beak = NSBezierPath()
-    beak.move(to: CGPoint(x: 4 * scale, y: 12 * scale))
-    beak.line(to: CGPoint(x: 7 * scale, y: 13 * scale))
-    beak.line(to: CGPoint(x: 7 * scale, y: 11 * scale))
-    beak.close()
-    beak.fill()
-
-    // Legs
-    let legWidth = 0.8 * scale
-    for legX in [10.0, 14.0] {
-        let leg = NSBezierPath(
-            roundedRect: NSRect(
-                x: legX * scale - legWidth / 2,
-                y: 5 * scale,
-                width: legWidth,
-                height: 3.5 * scale
-            ),
-            xRadius: legWidth / 2,
-            yRadius: legWidth / 2
-        )
-        leg.fill()
+    // At 44px, knock out a thin crease line to suggest fold
+    if size >= 44 {
+        // Punch a thin transparent crease through the filled
+        // silhouette via destination-out so the tinted template
+        // shows a fold line.
+        ctx.cgContext.setBlendMode(.destinationOut)
+        let creasePath = NSBezierPath()
+        creasePath.move(to: pt(crease.0.0, crease.0.1, size: s))
+        creasePath.line(to: pt(crease.1.0, crease.1.1, size: s))
+        creasePath.lineWidth = s * 0.04
+        creasePath.lineCapStyle = .round
+        NSColor.black.setStroke()
+        creasePath.stroke()
+        ctx.cgContext.setBlendMode(.normal)
     }
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
 }
 
-func savePNG(rep: NSBitmapImageRep, to url: URL) {
+func savePNG(rep: NSBitmapImageRep, to path: String) throws {
     guard let data = rep.representation(using: .png, properties: [:]) else {
-        return
+        throw NSError(domain: "GenerateMenuBarIcon", code: 1)
     }
-    try? data.write(to: url)
+    try data.write(to: URL(fileURLWithPath: path))
 }
 
-let outputDir = FileManager.default.currentDirectoryPath
-    + "/Resources/Assets.xcassets/MenuBarIcon.imageset"
-try? FileManager.default.createDirectory(
-    atPath: outputDir,
-    withIntermediateDirectories: true
+let fm = FileManager.default
+try? fm.createDirectory(
+    atPath: outputDir, withIntermediateDirectories: true
 )
 
-savePNG(
-    rep: drawMenuBarIcon(size: 22),
-    to: URL(fileURLWithPath: outputDir + "/menubar.png")
-)
-savePNG(
-    rep: drawMenuBarIcon(size: 44),
-    to: URL(fileURLWithPath: outputDir + "/menubar@2x.png")
-)
-
-let contentsJSON = """
-{
-  "images" : [
-    { "idiom" : "mac", "filename" : "menubar.png", "scale" : "1x" },
-    { "idiom" : "mac", "filename" : "menubar@2x.png", "scale" : "2x" }
-  ],
-  "info" : { "version" : 1, "author" : "xcode" },
-  "properties" : { "template-rendering-intent" : "template" }
+for (filename, pixels) in sizes {
+    guard let rep = drawIcon(size: pixels) else {
+        print("FAILED: \(filename)")
+        exit(1)
+    }
+    let path = "\(outputDir)/\(filename)"
+    try savePNG(rep: rep, to: path)
+    print("Wrote \(path) (\(pixels)x\(pixels), \(rep.pixelsWide)x\(rep.pixelsHigh) actual)")
 }
-"""
-try? contentsJSON.write(
-    to: URL(fileURLWithPath: outputDir + "/Contents.json"),
-    atomically: true, encoding: .utf8
-)
-print("Generated menu bar icon: \(outputDir)")
+
+print("Done")
