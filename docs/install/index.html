@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install Waraq — Live wallpapers for macOS</title>
+    <meta name="description" content="Step-by-step guide to installing Waraq on your Mac. Download the DMG or PKG installer — beginner friendly, with screenshots.">
+    <meta property="og:title" content="Install Waraq">
+    <meta property="og:description" content="Get live wallpapers running on your Mac in under a minute.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="assets/icon.png">
+</head>
+<body>
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-backdrop" aria-hidden="true">
+            <object data="assets/hero.svg" type="image/svg+xml" tabindex="-1" aria-hidden="true"></object>
+        </div>
+        <div class="hero-veil" aria-hidden="true"></div>
+        <div class="hero-content">
+            <img class="hero-mark" src="assets/icon.png" alt="" aria-hidden="true">
+            <h1 class="hero-title">Install Waraq</h1>
+            <p class="hero-tagline">Get live wallpapers running on your Mac in under a minute.</p>
+
+            <a href="https://github.com/bahamut42/waraq/releases/download/v1.0.0/Waraq-1.0.0.dmg"
+               class="download-button"
+               id="downloadBtn"
+               download>
+                <span class="download-icon" aria-hidden="true">&#8595;</span>
+                <span class="download-text">
+                    <span class="download-main">Download Waraq 1.0.0</span>
+                    <span class="download-sub">DMG &middot; macOS 14+ &middot; 2.3 MB &middot; Signed &amp; notarized</span>
+                </span>
+                <span class="download-burst" aria-hidden="true"></span>
+            </a>
+
+            <a href="https://github.com/bahamut42/waraq/releases/download/v1.0.0/Waraq-1.0.0.pkg"
+               class="alt-download"
+               download>
+                Or download the .pkg guided installer &rarr;
+            </a>
+
+            <p class="reassurance">Free and open source. GPL v3. No account, no tracking, no catch.</p>
+        </div>
+        <a href="#install" class="scroll-hint" aria-label="Scroll to installation steps">
+            <span></span>
+        </a>
+    </section>
+
+    <!-- Install flow -->
+    <section id="install" class="section reveal">
+        <div class="container">
+            <h2 class="section-title">Pick your install method</h2>
+            <p class="section-intro">Both options end with Waraq running in your Applications folder. Pick whichever feels easier — the DMG is the classic Mac drag-and-drop, the PKG walks you through it.</p>
+
+            <div class="tabs" role="tablist">
+                <button class="tab-button active" data-tab="dmg" role="tab" aria-selected="true">DMG &middot; drag &amp; drop</button>
+                <button class="tab-button" data-tab="pkg" role="tab" aria-selected="false">PKG &middot; guided installer</button>
+                <span class="tab-indicator" aria-hidden="true"></span>
+            </div>
+
+            <!-- DMG tab content -->
+            <div class="tab-content active" data-content="dmg">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-body">
+                        <h3>Download the DMG</h3>
+                        <p>Click the big download button at the top of this page, or grab it from the <a href="https://github.com/bahamut42/waraq/releases/tag/v1.0.0">v1.0.0 release page</a>. The file is named <code>Waraq-1.0.0.dmg</code> and lands in your Downloads folder.</p>
+                        <div class="screenshot">
+                            <img src="assets/01-download.png" alt="GitHub release page for Waraq 1.0.0" loading="lazy">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-body">
+                        <h3>Open the disk image</h3>
+                        <p>Double-click <code>Waraq-1.0.0.dmg</code> in Downloads. A small window opens showing two things: the Waraq app, and a shortcut to your Applications folder.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-body">
+                        <h3>Drag Waraq onto Applications</h3>
+                        <p>Click and hold the Waraq icon, drag it onto the Applications shortcut, and let go. macOS copies the app into your Applications folder. That's the entire install.</p>
+                        <div class="screenshot">
+                            <img src="assets/02-dmg.png" alt="Disk image window: drag Waraq onto the Applications folder" loading="lazy">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-body">
+                        <h3>Eject the disk image</h3>
+                        <p>Close the window, then eject the "Waraq" disk — right-click it on your desktop (or in the Finder sidebar) and choose Eject. This is just tidying up; the app is already copied.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-body">
+                        <h3>Launch Waraq from Applications</h3>
+                        <p>Open Finder &rarr; Applications, and double-click Waraq. Because the app is signed and notarized by Apple, it just launches — no scary warning.</p>
+                        <div class="screenshot">
+                            <img src="assets/03-applications.png" alt="Waraq.app selected in the Applications folder" loading="lazy">
+                        </div>
+                        <div class="info-box">
+                            <strong>If you ever see a security prompt</strong> (only on very strict setups), click <em>Open</em> to confirm.
+                            <div class="screenshot inline">
+                                <img src="assets/06-gatekeeper.png" alt="macOS dialog asking whether to open Waraq, with Open highlighted" loading="lazy">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-body">
+                        <h3>Done</h3>
+                        <p>Waraq's wallpaper-roll icon appears in your menu bar (top-right of your screen). The first launch runs a quick setup wizard — displays, a starter wallpaper, performance preferences. You're set.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PKG tab content -->
+            <div class="tab-content" data-content="pkg">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-body">
+                        <h3>Download the PKG</h3>
+                        <p>Grab <code>Waraq-1.0.0.pkg</code> from the <a href="https://github.com/bahamut42/waraq/releases/tag/v1.0.0">v1.0.0 release page</a>, or use the secondary download link in the hero above.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-body">
+                        <h3>Launch the installer</h3>
+                        <p>Double-click <code>Waraq-1.0.0.pkg</code> in Downloads. The macOS installer wizard opens on a Welcome screen.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-body">
+                        <h3>Click Continue</h3>
+                        <p>Read the welcome text if you like, then click <em>Continue</em> in the bottom-right.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-body">
+                        <h3>Agree to the GPL v3 license</h3>
+                        <p>The next screen shows the GNU General Public License v3. Click <em>Continue</em>, then <em>Agree</em> in the popup.</p>
+                        <div class="info-box">
+                            GPL v3 is what keeps Waraq free forever. Agreeing means you accept that if you modify and redistribute Waraq, your version stays GPL v3 too.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-body">
+                        <h3>Click Install</h3>
+                        <p>The installer asks for your Mac login. This is standard for any installer — macOS requires permission to write into the Applications folder.</p>
+                        <div class="screenshot">
+                            <img src="assets/07-admin-auth.png" alt="macOS prompt asking to allow the installer to install software" loading="lazy">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-body">
+                        <h3>Wait a few seconds</h3>
+                        <p>A progress bar runs, then a success screen appears.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">7</div>
+                    <div class="step-body">
+                        <h3>Click Close</h3>
+                        <p>Waraq is now installed in your Applications folder.</p>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-number">8</div>
+                    <div class="step-body">
+                        <h3>Launch Waraq</h3>
+                        <p>Open Applications and double-click Waraq. The menu bar icon appears top-right, and the setup wizard runs on first launch.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- First launch -->
+    <section id="first-launch" class="section section-alt reveal">
+        <div class="container">
+            <h2 class="section-title">After installing</h2>
+
+            <div class="content-row">
+                <div class="content-text">
+                    <h3>Look for the menu bar icon</h3>
+                    <p>Waraq is a menu bar app — no Dock icon. After launching, look in the top-right corner of your screen for the small wallpaper-roll icon. Click it to open Waraq Settings.</p>
+                </div>
+                <div class="content-image">
+                    <img src="assets/04-menubar.png" alt="Waraq's icon highlighted in the macOS menu bar" loading="lazy">
+                </div>
+            </div>
+
+            <div class="content-row reverse">
+                <div class="content-text">
+                    <h3>Run the setup wizard</h3>
+                    <p>On first launch, a short 5-step wizard appears. It helps you pick which displays get animated wallpapers, choose a starter wallpaper, and set performance preferences (like pausing on battery). You can re-run it any time from the About pane.</p>
+                </div>
+                <div class="content-image">
+                    <img src="assets/05-onboarding.png" alt="Waraq setup wizard welcome screen" loading="lazy">
+                </div>
+            </div>
+
+            <div class="content-row">
+                <div class="content-text">
+                    <h3>Tune everything in Settings</h3>
+                    <p>Each connected display gets its own row — toggle it on, pick a wallpaper, set fit mode, mute, and volume. Profiles save by hardware ID, so swapping monitors never blows away your setup.</p>
+                </div>
+                <div class="content-image">
+                    <img src="assets/08-settings.png" alt="Waraq Settings showing the Displays pane" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section id="troubleshooting" class="section reveal">
+        <div class="container">
+            <h2 class="section-title">Troubleshooting</h2>
+            <p class="section-intro">If something doesn't work, expand the relevant section.</p>
+
+            <details class="trouble-item">
+                <summary>Waraq won't open — "unidentified developer" warning</summary>
+                <p>This shouldn't happen because Waraq is notarized by Apple. If it does, your Mac may have very strict Gatekeeper settings. Open System Settings &rarr; Privacy &amp; Security, scroll to the bottom, and click "Open Anyway" next to the Waraq message.</p>
+            </details>
+
+            <details class="trouble-item">
+                <summary>I don't see the menu bar icon</summary>
+                <p>It might be hidden if your menu bar is crowded — macOS tucks overflow icons away. Click the chevron or "&hellip;" in your menu bar to reveal hidden items. A tool like <a href="https://github.com/dwarvesf/hidden">Hidden Bar</a> helps manage a busy menu bar.</p>
+            </details>
+
+            <details class="trouble-item">
+                <summary>Wallpaper doesn't appear after setup</summary>
+                <p>Open Waraq Settings (click the menu bar icon) and check the Displays pane. Make sure the display you want is toggled ON, and click "Configure" to confirm a wallpaper is selected. If you're on battery, check the Performance pane — Waraq pauses on battery by default; you can turn that off.</p>
+            </details>
+
+            <details class="trouble-item">
+                <summary>The .dmg file won't open</summary>
+                <p>Make sure the download finished completely (the size should match the release page). Try a fresh download, ideally from a different browser if the file seems corrupted. Old Waraq DMGs lingering in Downloads can sometimes interfere — remove them and grab a clean copy.</p>
+            </details>
+
+            <details class="trouble-item">
+                <summary>Wallpaper looks pixelated or low quality</summary>
+                <p>Check the source file's resolution. Anything below your display's resolution gets stretched. For best results use 4K source files on 4K displays. The Gallery sources (Pixabay, Pexels, NASA) all offer HD/4K options — pick a higher resolution.</p>
+            </details>
+
+            <details class="trouble-item">
+                <summary>Waraq uses too much CPU or battery</summary>
+                <p>Open Settings &rarr; Performance. Lower the render quality, cap the frame rate, and keep "Pause on battery" enabled. You can also pause wallpapers on specific displays — a secondary monitor doesn't need to render constantly if you're not looking at it.</p>
+            </details>
+        </div>
+    </section>
+
+    <!-- Uninstall -->
+    <section id="uninstall" class="section section-alt reveal">
+        <div class="container">
+            <h2 class="section-title">Uninstalling</h2>
+
+            <div class="uninstall-card">
+                <div class="step-number">1</div>
+                <div>
+                    <h3>Quit Waraq</h3>
+                    <p>Click the menu bar icon and choose Quit.</p>
+                </div>
+            </div>
+
+            <div class="uninstall-card">
+                <div class="step-number">2</div>
+                <div>
+                    <h3>Drag the app to the Trash</h3>
+                    <p>Open Applications, drag Waraq to the Trash, and empty the Trash to fully remove it.</p>
+                </div>
+            </div>
+
+            <div class="uninstall-card">
+                <div class="step-number">3</div>
+                <div>
+                    <h3>Optional: clean up app data</h3>
+                    <p>Waraq stores wallpapers and settings in <code>~/Library/Application Support/Waraq/</code>. Delete that folder to remove every trace. Leaving it does no harm — it just takes a little disk space.</p>
+                </div>
+            </div>
+
+            <p class="uninstall-footer">That's it. No hidden uninstaller, no leftover daemons, no system extensions. Waraq is a normal Mac app that lives in <code>/Applications</code> and keeps its data in <code>~/Library/Application&nbsp;Support/</code>.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-main">
+                    <h3>Waraq</h3>
+                    <p>Free, open-source live wallpapers for macOS. GPL v3. Forever.</p>
+                </div>
+                <nav class="footer-links" aria-label="Footer links">
+                    <a href="https://github.com/bahamut42/waraq">GitHub</a>
+                    <a href="https://github.com/bahamut42/waraq/issues">Report a bug</a>
+                    <a href="https://github.com/bahamut42/waraq/releases">All releases</a>
+                    <a href="https://paypal.me/OOthman666">Support the developer</a>
+                </nav>
+            </div>
+            <p class="footer-copyright">Built by Omar A. Othman. Coded with significant assistance from Anthropic's Claude.</p>
+        </div>
+    </footer>
+
+    <!-- Back to top -->
+    <a href="#" class="back-to-top" aria-label="Back to top">&#8593;</a>
+
+    <!-- Progress indicator -->
+    <nav class="progress-nav" aria-label="Section navigation">
+        <a href="#install" data-section="install" class="progress-dot active"><span class="progress-label">Install</span></a>
+        <a href="#first-launch" data-section="first-launch" class="progress-dot"><span class="progress-label">First launch</span></a>
+        <a href="#troubleshooting" data-section="troubleshooting" class="progress-dot"><span class="progress-label">Troubleshooting</span></a>
+        <a href="#uninstall" data-section="uninstall" class="progress-dot"><span class="progress-label">Uninstall</span></a>
+    </nav>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -58,7 +58,10 @@ If you want zero network involvement: don't put API keys in. Use Waraq purely as
 
 ## Install
 
-Two ways to install Waraq on your Mac. You do **not** need Xcode or to build anything — just download and run.
+> **📖 Never installed a Mac app from outside the App Store?**
+> Follow the **[interactive install guide](https://bahamut42.github.io/waraq/install/)** — step-by-step screenshots, annotated dialogs, and beginner-friendly explanations for both the DMG and PKG.
+
+Or follow the quick instructions below. Two ways to install Waraq on your Mac — you do **not** need Xcode or to build anything, just download and run.
 
 ### Option 1: DMG (drag and drop)
 
