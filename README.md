@@ -62,7 +62,7 @@ Two ways to install Waraq on your Mac. You do **not** need Xcode or to build any
 
 ### Option 1: DMG (drag and drop)
 
-1. Download `Waraq-1.0.0-rc1.dmg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
+1. Download `Waraq-1.0.0.dmg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
 2. Double-click the downloaded file
 3. Drag the Waraq icon onto the Applications folder
 4. Eject the disk image
@@ -70,14 +70,14 @@ Two ways to install Waraq on your Mac. You do **not** need Xcode or to build any
 
 ### Option 2: PKG (guided installer)
 
-1. Download `Waraq-1.0.0-rc1.pkg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
+1. Download `Waraq-1.0.0.pkg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
 2. Double-click to launch the installer
 3. Follow the wizard (Continue → agree to GPL v3 → Install)
 4. Waraq is installed to Applications
 
-Both methods install to `/Applications/Waraq.app` — pick whichever you prefer. The first launch shows a quick setup wizard (displays, a starter wallpaper, performance preferences).
+Both methods install to `/Applications/Waraq.app` — pick whichever you prefer. Both downloads are code-signed and notarized, so they launch with no Gatekeeper warnings. The first launch shows a quick setup wizard (displays, a starter wallpaper, performance preferences).
 
-> **This is a release candidate.** v1.0.0-rc1 is a beta — please report anything broken at the [Issues page](https://github.com/bahamut42/waraq/issues).
+Found a bug? [Open an issue.](https://github.com/bahamut42/waraq/issues)
 
 ## Quick tour
 

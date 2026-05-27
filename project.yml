@@ -31,8 +31,8 @@ targets:
       properties:
         LSUIElement: true
         CFBundleDisplayName: Waraq
-        CFBundleShortVersionString: "1.0.0-rc2"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "3"
         NSHumanReadableCopyright: "Copyright (C) 2026 Omar A. Othman. Licensed under GPL v3."
         NSHighResolutionCapable: true
         LSMinimumSystemVersion: "14.0"
