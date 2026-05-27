@@ -44,7 +44,7 @@ struct GalleryItemPreview: View {
     private var videoArea: some View {
         Group {
             if let player {
-                VideoPlayer(player: player)
+                PlayerContainerView(player: player)
             } else {
                 Rectangle()
                     .fill(Color.black.opacity(0.85))
@@ -126,5 +126,28 @@ struct GalleryItemPreview: View {
         }
         loopObserver = nil
         player = nil
+    }
+}
+
+/// Wraps AppKit's `AVPlayerView` directly. We deliberately avoid
+/// SwiftUI's `VideoPlayer`: on this macOS/SDK combination, building
+/// it crashes inside `_AVKit_SwiftUI` generic-metadata
+/// instantiation (getSuperclassMetadata fatalError → SIGABRT).
+/// AVPlayerView is stable and lets us hide the transport controls.
+private struct PlayerContainerView: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context _: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .none
+        view.videoGravity = .resizeAspect
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context _: Context) {
+        if nsView.player !== player {
+            nsView.player = player
+        }
     }
 }
