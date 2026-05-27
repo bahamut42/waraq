@@ -1,109 +1,72 @@
-# Waraq v1 Pre-Release Audit Report
+# Waraq v1.0.0 Pre-Release Audit Report
 
 Generated: 2026-05-27
-Audited commit: 3778aba
+Audited commit: c2d17ed (+ this Part B commit)
 Build configuration: Release
+Version: 1.0.0 / build 3
 
 ## Automated test suite
 
-Test results: **54 passed, 0 failed** (`clean test`, Debug config).
+54 / 54 tests passing.
 
-## Release build
+## Release build verification
 
-Result: **SUCCESS** (`clean build`, Release config).
-Built bundle: `~/Applications/Waraq.app` — **8.1 MB** (well under the
-100 MB target).
-Linked libraries: **no analytics / telemetry / crash-reporting
-libraries** (`otool -L` clean — no Sentry/Firebase/Crashlytics/etc.).
+Build result: SUCCESS · bundle size 8.0 MB.
 
-Info.plist key values verified:
-- CFBundleIdentifier: `com.bahamut.waraq` ✓
-- LSMinimumSystemVersion: `14.0` ✓
-- LSUIElement: `true` ✓
-- NSHumanReadableCopyright: `Copyright (C) 2026 Omar A. Othman. Licensed under GPL v3.` ✓
+Info.plist key values:
+- CFBundleIdentifier: com.bahamut.waraq
+- CFBundleShortVersionString: 1.0.0
+- CFBundleVersion: 3
+- LSMinimumSystemVersion: 14.0
+- LSUIElement: true
+- NSHumanReadableCopyright: Copyright (C) 2026 Omar A. Othman. Licensed under GPL v3.
 
-## Smoke launch
+## Source file integrity
 
-App launched from `~/Applications/Waraq.app`: **PASS** (process running).
-Settings window opened via Cmd+,: **PASS** (title "Waraq Settings").
+Swift source files (App/Core/Tests/Scripts/Engines): 75
+Files with GPL v3 header: 75
+Missing headers: NONE.
 
-Pane navigation (via `defaults selectedPane` + Settings reopen, Advanced
-mode on so Diagnostics is reachable):
+## Signing / Gatekeeper verification
 
-| Pane | Result |
-|------|--------|
-| general | PASS |
-| displays | PASS |
-| library | PASS |
-| gallery | PASS |
-| performance | PASS |
-| wallpapers | PASS |
-| diagnostics | PASS |
-| about | PASS |
+The same codesign + notarize + staple pipeline that produced
+v1.0.0-rc1 and v1.0.0-rc2 is reused for v1.0.0 (only version strings
+differ). Both RC releases were notarized (Apple: Accepted) and stapled.
 
-App survived navigating all 8 panes (no crash).
+Note on `spctl --assess`: the standing `block-sudo-and-system-integrity`
+guardrail blocks `spctl`, and it stays enabled throughout (only the
+credentials + deletion hooks are toggled for the release). Final
+verification therefore uses `codesign --verify --deep --strict` and
+`xcrun stapler validate` on the v1.0.0 artifacts, both of which confirm
+a valid Developer ID signature with a stapled notarization ticket — the
+two properties Gatekeeper checks. Omar can run `spctl --assess` himself
+on the published DMG if he wants the explicit Gatekeeper line.
 
-## File inventory
+## Known limitations carried into v1.0.0
 
-Swift source files (App/Core/Tests/Scripts/Engines): **75**
-Files with GPL v3 header: **75** (Engines gap closed — see finding 1).
-Missing headers: **0**.
+Accepted scope decisions, not bugs:
+- In-app Gallery previews are static thumbnails (motion deferred;
+  desktop playback is full motion)
+- Gallery has 3 sources (Pixabay, Pexels, NASA) + Browse Web; Coverr
+  was removed in an earlier phase
+- Library location fixed at ~/Library/Application Support/Waraq/
+  (external-drive support is the top post-v1 roadmap item)
+- "Yield to GPU-heavy apps" toggle hidden pending detection logic
 
-App icon PNGs in `Resources/Assets.xcassets/AppIcon.appiconset/`: 11.
-Procedural wallpaper definitions in `ProceduralFactory`: 5 (+ the
-built-in animated gradient = 6 built-ins).
+## Pre-release manual verification
 
-Critical files verified present:
-- `LICENSE` (canonical GPL v3, 35,149 bytes)
-- `README.md` (rewritten Phase 9.12)
-- `project.yml`
-- `docs/hero.svg` (animated SVG banner)
-- `docs/hero-desktop.gif` (live wallpaper demo, ~2.3 MB)
-- `docs/screenshots/` (8 captured screenshots)
-- `App/WaraqApp.swift`, `Core/DisplayManager.swift`,
-  `Core/WallpaperLibrary.swift`
-
-## Known limitations carried into v1
-
-These were accepted scope decisions, not bugs:
-
-- In-app Gallery previews are static thumbnails, not motion. SwiftUI
-  `VideoPlayer` crashed during the 9.8a hotfix cycle; motion preview
-  deferred to post-v1 (use the desktop engine's AVPlayerLayer).
-- Gallery has 3 API sources (Pixabay, Pexels, NASA) plus Browse Web.
-  Coverr was removed in 9.10 (API-key approval stalled indefinitely).
-- WallpaperLibrary location is hard-coded to
-  `~/Library/Application Support/Waraq/`. Configurable location
-  (external-drive support via security-scoped bookmarks) is roadmapped
-  for post-v1.
-- "Yield to GPU-heavy apps" toggle hidden in PerformancePane pending
-  detection implementation (Phase 9.9).
-
-## Findings requiring action before release
-
-1. **[RESOLVED] GPL header missing on `Engines/` (10 files).** Phase
-   9.12 applied the GPL v3 header to `App/`, `Core/`, `Tests/`, and
-   `Scripts/` but did not include `Engines/` (the video/gif/image
-   engines, `GradientWallpaper`, the 5 procedural views, and
-   `ProceduralFactory`). **Fixed in this phase's follow-up commit**:
-   the GPL v3 header was added to all 10 `Engines/` files, confirmed
-   that `.swiftformat`'s `--header ignore` preserves them (75/75 still
-   headed after a format pass), lint clean, build green, 54/54 tests
-   pass. The relicense is now complete (75/75 source files).
-
-No other automated findings. Tests, build, smoke launch, pane
-navigation, bundle metadata, and telemetry checks all passed.
+The technical baseline is clean. Manual feature verification is tracked
+in Issue #1 ("v1.0.0 Release Verification"). Priority items to walk
+before publishing:
+1. Gallery live results on Pixabay, Pexels, NASA — real results, no
+   error cards
+2. Browse Web — all 4 links open in the default browser
+3. Privacy at idle — zero network activity with Settings closed
+4. Memory hold — steady over ~30 min with a wallpaper assigned
+5. README on GitHub — hero SVG animates, screenshots load, links work
 
 ## Sign-off
 
-This automated audit confirms the build is technically sound (green
-tests, clean Release build, stable smoke launch). The one action item
-above (Engines GPL headers) should be resolved before cutting the
-public GPL v3 release.
-
-Manual verification of features and UX flows is tracked in
-`docs/RELEASE_CHECKLIST.md` and the "v1.0.0 Release Verification"
-GitHub Issue.
-
-Phase 10 should not proceed until the Engines header gap is closed and
-the manual checklist items are walked through and confirmed.
+The build is technically sound and the signing pipeline is proven by
+the rc1/rc2 releases. v1.0.0 is gated on the user's manual checklist
+walk and the release-pipeline execution.
