@@ -36,7 +36,7 @@ struct GalleryPane: View {
                     Button("Change API key…") { viewModel.clearAPIKey() }
                 } label: {
                     Label(
-                        viewModel.source.displayName,
+                        viewModel.selectedSource.displayName,
                         systemImage: "chevron.down"
                     )
                     .font(.system(size: 12))

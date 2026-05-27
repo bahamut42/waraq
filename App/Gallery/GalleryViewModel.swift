@@ -2,6 +2,7 @@ import SwiftUI
 
 @MainActor
 final class GalleryViewModel: ObservableObject {
+    @Published var selectedSource: GallerySource = .pixabay
     @Published var searchQuery: String = ""
     @Published var items: [GalleryItem] = []
     @Published var isSearching: Bool = false
@@ -14,12 +15,11 @@ final class GalleryViewModel: ObservableObject {
     @Published var lastAddedTitle: String?
     @Published var hasSearched: Bool = false
 
-    let source: GallerySource = .pixabay
-
-    /// Injected, never `.shared` — mirrors the Phase 9.7
-    /// dependency-injection pattern so the view model is testable
-    /// and never spins up a parallel library instance.
-    private let client = PixabayClient()
+    /// Per-source clients. New in 9.8b: search routes to the client
+    /// for `selectedSource`. Injected downloader (never `.shared`),
+    /// mirroring the Phase 9.7 dependency-injection pattern.
+    private let pixabayClient = PixabayClient()
+    private let pexelsClient = PexelsClient()
     private let downloader: GalleryDownloader
 
     init(library: WallpaperLibrary) {
@@ -27,18 +27,32 @@ final class GalleryViewModel: ObservableObject {
         hasAPIKey = APIKeyStore.hasKey(for: .pixabay)
     }
 
+    /// Switch the active source. Clears results and re-reads whether
+    /// a key is stored for the new source so the UI can show the
+    /// right state (grid, empty-key, or coming-soon).
+    func setSource(_ source: GallerySource) {
+        guard source != selectedSource else { return }
+        selectedSource = source
+        items = []
+        error = nil
+        hasSearched = false
+        lastAddedTitle = nil
+        apiKeyInput = ""
+        hasAPIKey = APIKeyStore.hasKey(for: source)
+    }
+
     func saveAPIKey() {
         let trimmed = apiKeyInput.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
         guard !trimmed.isEmpty else { return }
-        APIKeyStore.setKey(trimmed, for: .pixabay)
+        APIKeyStore.setKey(trimmed, for: selectedSource)
         hasAPIKey = true
         apiKeyInput = ""
     }
 
     func clearAPIKey() {
-        APIKeyStore.setKey(nil, for: .pixabay)
+        APIKeyStore.setKey(nil, for: selectedSource)
         hasAPIKey = false
         items = []
         hasSearched = false
@@ -49,19 +63,33 @@ final class GalleryViewModel: ObservableObject {
             in: .whitespacesAndNewlines
         )
         guard !query.isEmpty else { return }
+        guard selectedSource.isImplemented else {
+            error = "\(selectedSource.displayName) is coming soon."
+            return
+        }
         guard hasAPIKey else { return }
 
         isSearching = true
         error = nil
         hasSearched = true
         do {
-            let results = try await client.search(query: query)
+            let results = try await search(query: query, on: selectedSource)
             items = results
         } catch {
             self.error = error.localizedDescription
             items = []
         }
         isSearching = false
+    }
+
+    private func search(
+        query: String, on source: GallerySource
+    ) async throws -> [GalleryItem] {
+        switch source {
+        case .pixabay: try await pixabayClient.search(query: query)
+        case .pexels: try await pexelsClient.search(query: query)
+        case .coverr, .nasa: [] // stubs until 9.8c / 9.8d
+        }
     }
 
     func select(_ item: GalleryItem) {

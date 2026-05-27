@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// Hosts the gallery search experience. Shows an API-key empty
-/// state when no key is configured, otherwise a search bar plus
-/// a 3-column grid of results. The owning pane injects the view
-/// model (which holds the injected WallpaperLibrary).
+/// Hosts the gallery search experience. A source picker sits at the
+/// top; below it, the content adapts to the selected source: a
+/// "coming soon" notice for unimplemented sources, an API-key empty
+/// state when no key is stored, or the search bar + results grid. The
+/// owning pane injects the view model (which holds the injected
+/// WallpaperLibrary).
 struct GalleryView: View {
     @ObservedObject var viewModel: GalleryViewModel
 
@@ -14,13 +16,11 @@ struct GalleryView: View {
     ]
 
     var body: some View {
-        Group {
-            if viewModel.hasAPIKey {
-                configuredState
-            } else {
-                emptyState
-            }
+        VStack(alignment: .leading, spacing: 16) {
+            sourcePicker
+            content
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .sheet(item: $viewModel.selectedItem) { item in
             GalleryItemPreview(
                 item: item,
@@ -28,6 +28,45 @@ struct GalleryView: View {
                 downloadError: viewModel.downloadError,
                 onAdd: { Task { await viewModel.download(item) } },
                 onCancel: { viewModel.dismissPreview() }
+            )
+        }
+    }
+
+    private var sourcePicker: some View {
+        Picker(
+            "Source",
+            selection: Binding(
+                get: { viewModel.selectedSource },
+                set: { viewModel.setSource($0) }
+            )
+        ) {
+            ForEach(GallerySource.allCases, id: \.self) { source in
+                Text(source.displayName).tag(source)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if !viewModel.selectedSource.isImplemented {
+            comingSoon
+        } else if viewModel.hasAPIKey {
+            configuredState
+        } else {
+            emptyState
+        }
+    }
+
+    // MARK: Coming soon (unimplemented source)
+
+    private var comingSoon: some View {
+        centered {
+            messageBlock(
+                icon: "clock.badge",
+                title: "\(viewModel.selectedSource.displayName) is coming soon",
+                subtitle: "This source isn't available yet. Try Pixabay or Pexels in the meantime."
             )
         }
     }
@@ -50,7 +89,7 @@ struct GalleryView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.tertiary)
                 TextField(
-                    "Search \(viewModel.source.displayName) videos…",
+                    "Search \(viewModel.selectedSource.displayName) videos…",
                     text: $viewModel.searchQuery
                 )
                 .textFieldStyle(.plain)
@@ -138,19 +177,19 @@ struct GalleryView: View {
             Image(systemName: "photo.stack")
                 .font(.system(size: 52))
                 .foregroundStyle(.tertiary)
-            Text("Connect \(viewModel.source.displayName) to browse wallpapers")
+            Text("Connect \(viewModel.selectedSource.displayName) to browse wallpapers")
                 .font(.system(size: 16, weight: .semibold))
                 .multilineTextAlignment(.center)
-            Text("\(viewModel.source.displayName) offers thousands of free videos. Sign up for a free API key to start browsing.")
+            Text("\(viewModel.selectedSource.displayName) offers thousands of free videos. Sign up for a free API key to start browsing.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
 
-            if let signup = viewModel.source.apiKeySignupURL {
+            if let signup = viewModel.selectedSource.apiKeySignupURL {
                 Link(destination: signup) {
                     HStack(spacing: 4) {
-                        Text("Get an API key from \(viewModel.source.displayName)")
+                        Text("Get an API key from \(viewModel.selectedSource.displayName)")
                         Image(systemName: "arrow.up.right")
                     }
                     .font(.system(size: 12, weight: .medium))
@@ -160,7 +199,7 @@ struct GalleryView: View {
 
             VStack(spacing: 8) {
                 SecureField(
-                    "Paste your \(viewModel.source.displayName) API key here",
+                    "Paste your \(viewModel.selectedSource.displayName) API key here",
                     text: $viewModel.apiKeyInput
                 )
                 .textFieldStyle(.roundedBorder)

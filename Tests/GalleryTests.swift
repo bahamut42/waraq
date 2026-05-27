@@ -56,4 +56,55 @@ final class GalleryTests: XCTestCase {
         APIKeyStore.setKey("   ", for: .pixabay)
         XCTAssertNil(APIKeyStore.key(for: .pixabay))
     }
+
+    // MARK: Phase 9.8b — multi-source
+
+    func testGalleryCacheSeparatesByCacheKey() {
+        // Storing the same query under different sources should
+        // produce independent cache entries.
+        let pixabayItem = makeTestItem(source: .pixabay, idSuffix: "px")
+        let pexelsItem = makeTestItem(source: .pexels, idSuffix: "px")
+        let query = "test-cache-isolation-\(UUID().uuidString)"
+
+        GalleryCache.store([pixabayItem], source: .pixabay, query: query)
+        GalleryCache.store([pexelsItem], source: .pexels, query: query)
+
+        let pixabayFetched = GalleryCache.fetch(source: .pixabay, query: query)
+        let pexelsFetched = GalleryCache.fetch(source: .pexels, query: query)
+
+        XCTAssertEqual(pixabayFetched?.first?.source, .pixabay)
+        XCTAssertEqual(pexelsFetched?.first?.source, .pexels)
+        XCTAssertNotEqual(
+            pixabayFetched?.first?.id, pexelsFetched?.first?.id
+        )
+    }
+
+    func testGallerySourceImplementedFlag() {
+        XCTAssertTrue(GallerySource.pixabay.isImplemented)
+        XCTAssertTrue(GallerySource.pexels.isImplemented)
+        XCTAssertFalse(GallerySource.coverr.isImplemented)
+        XCTAssertFalse(GallerySource.nasa.isImplemented)
+    }
+
+    private func makeTestItem(
+        source: GallerySource, idSuffix: String
+    ) -> GalleryItem {
+        let attribution = GalleryAttribution(
+            creatorName: "Test",
+            creatorURL: URL(string: "https://example.com"),
+            sourceName: source.displayName,
+            sourceURL: source.websiteURL
+        )
+        return GalleryItem(
+            id: "\(source.rawValue)-\(idSuffix)",
+            source: source,
+            title: "Test", tags: [],
+            thumbnailURL: URL(string: "https://example.com/t.jpg")!,
+            previewVideoURL: URL(string: "https://example.com/p.mp4")!,
+            downloadVideoURL: URL(string: "https://example.com/d.mp4")!,
+            width: 1920, height: 1080, duration: 10,
+            attribution: attribution,
+            pageURL: URL(string: "https://example.com/page")!
+        )
+    }
 }
