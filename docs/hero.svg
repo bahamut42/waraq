@@ -10,6 +10,10 @@
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
     @keyframes drawLine {
       from { stroke-dashoffset: 200; }
       to { stroke-dashoffset: 0; }
@@ -17,10 +21,6 @@
     @keyframes pulse {
       0%, 100% { opacity: 0.55; }
       50% { opacity: 1; }
-    }
-    @keyframes chevronWave {
-      0%, 100% { transform: translateX(0); }
-      50% { transform: translateX(8px); }
     }
     .title {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
@@ -32,14 +32,15 @@
     }
     .arabic {
       font-family: "Geeza Pro", "SF Arabic", "Noto Naskh Arabic", -apple-system, system-ui, sans-serif;
-      font-size: 88px;
+      font-size: 96px;
       font-weight: 700;
       fill: #c83a4a;
-      animation: fadeUp 1.4s ease-out;
+      opacity: 0.92;
+      animation: fadeIn 2s ease-out;
     }
     .define {
       font-family: "SF Mono", ui-monospace, Menlo, monospace;
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 400;
       fill: #b8b0a2;
       animation: fadeUp 1.7s ease-out;
@@ -60,26 +61,14 @@
       stroke-dasharray: 200;
       animation: drawLine 1.5s ease-out forwards, pulse 3s ease-in-out 1.5s infinite;
     }
-    .chevron {
-      stroke: #f5ecd6;
-      stroke-width: 2.5;
-      fill: none;
-      opacity: 0.12;
-      animation: chevronWave 4s ease-in-out infinite;
-    }
   </style>
   <rect width="1200" height="320" fill="url(#bg)" rx="14"/>
-  <!-- Subtle chevron pattern in upper right -->
-  <g class="chevron">
-    <polyline points="980,52 1010,34 1040,52 1070,34 1100,52 1130,34 1160,52"/>
-    <polyline points="980,78 1010,60 1040,78 1070,60 1100,78 1130,60 1160,78"/>
-    <polyline points="980,104 1010,86 1040,104 1070,86 1100,104 1130,86 1160,104"/>
-  </g>
-  <!-- Wordmark: Waraq + Arabic ورق -->
-  <text x="80" y="150" class="title">Waraq</text>
-  <text x="360" y="150" class="arabic" direction="rtl">ورق</text>
-  <line x1="86" y1="178" x2="300" y2="178" class="accent"/>
-  <!-- Dictionary gloss -->
-  <text x="80" y="224" class="define">waraq · noun · Arabic — paper; leaves; sheets (as in ورق الجدران, “wallpaper”)</text>
-  <text x="80" y="262" class="tagline">Live animated wallpapers for macOS. Free. Forever.</text>
+  <!-- English wordmark on the left -->
+  <text x="80" y="148" class="title">Waraq</text>
+  <line x1="86" y1="176" x2="300" y2="176" class="accent"/>
+  <!-- Arabic wordmark on the right, balanced against the English -->
+  <text x="1040" y="150" class="arabic" text-anchor="middle">ورق</text>
+  <!-- Dictionary gloss + tagline -->
+  <text x="80" y="222" class="define">waraq · noun · Arabic — paper; leaves; sheets (as in ورق الجدران, “wallpaper”)</text>
+  <text x="80" y="260" class="tagline">Live animated wallpapers for macOS. Free. Forever.</text>
 </svg>
