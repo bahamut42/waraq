@@ -18,7 +18,7 @@ Yes, there's already a thing called Wallpaper Engine. It's on Steam. It costs mo
 Waraq does the Mac version. Free. GPL v3. Forever.
 
 <p align="center">
-  <img src="docs/screenshots/00-hero-desktop.png" alt="Waraq running on a multi-monitor setup" width="100%">
+  <img src="docs/hero-desktop.gif" alt="Waraq running an animated Aurora wallpaper on the desktop" width="100%">
 </p>
 
 ## What Waraq does
