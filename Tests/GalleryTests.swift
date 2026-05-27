@@ -145,6 +145,28 @@ final class GalleryTests: XCTestCase {
         )
     }
 
+    func testExternalSourcesAllHaveValidURLs() {
+        for source in ExternalSources.all {
+            XCTAssertEqual(
+                source.websiteURL.scheme, "https",
+                "External source URL must use HTTPS: \(source.name)"
+            )
+            XCTAssertNotNil(
+                source.websiteURL.host,
+                "External source URL must have a host: \(source.name)"
+            )
+        }
+    }
+
+    func testExternalSourcesHaveStableIDs() {
+        let ids = ExternalSources.all.map(\.id)
+        XCTAssertEqual(
+            ids.count, Set(ids).count,
+            "External source IDs must be unique"
+        )
+        XCTAssertFalse(ids.isEmpty)
+    }
+
     private func makeTestItem(
         source: GallerySource, idSuffix: String
     ) -> GalleryItem {

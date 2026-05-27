@@ -9,6 +9,15 @@ import SwiftUI
 /// WallpaperLibrary).
 struct GalleryView: View {
     @ObservedObject var viewModel: GalleryViewModel
+    @State private var tab: GalleryTab = .online
+
+    private enum GalleryTab: String, CaseIterable, Identifiable {
+        case online = "Online Sources"
+        case browseWeb = "Browse Web"
+        var id: String {
+            rawValue
+        }
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -18,8 +27,14 @@ struct GalleryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sourcePicker
-            content
+            tabPicker
+            switch tab {
+            case .online:
+                sourcePicker
+                content
+            case .browseWeb:
+                BrowseWebView()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .sheet(item: $viewModel.selectedItem) { item in
@@ -31,6 +46,16 @@ struct GalleryView: View {
                 onCancel: { viewModel.dismissPreview() }
             )
         }
+    }
+
+    private var tabPicker: some View {
+        Picker("View", selection: $tab) {
+            ForEach(GalleryTab.allCases) { tab in
+                Text(tab.rawValue).tag(tab)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private var sourcePicker: some View {
