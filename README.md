@@ -11,6 +11,7 @@
   </a>
   <img src="https://img.shields.io/badge/macOS-14%2B-lightgrey.svg" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Swift-5.10%2B-orange.svg" alt="Swift 5.10+">
+  <img src="https://visitor-badge.laobi.icu/badge?page_id=bahamut42.waraq&title=views&right_color=c83a4a" alt="Repo views">
 </p>
 
 Waraq started as a proof of concept I built for myself. I wanted live wallpapers on my Mac - the kind Wallpaper Engine ships on Windows - and the existing Mac options were either paid, abandoned, or built on content from sites with sketchy licensing. So I spent some free time building a clean version. If you find it useful, great. If you want to pick it up and extend it, please do - fork it, ship your own version, contribute back. The only rule is the one GPL v3 already enforces: it stays free, nobody sells it, nobody closes the source. That's the entire condition.
