@@ -80,6 +80,17 @@ final class WaraqTests: XCTestCase {
         XCTAssertNotNil(engine.layer)
     }
 
+    func testVideoEngineTileModeSurvivesZeroBounds() {
+        // Regression: .tile computed cols/rows as Int(ceil(bounds /
+        // tileSize)). At launch the layer bounds are .zero and the
+        // video size hasn't loaded, so that was Int(NaN) and trapped,
+        // crashing the app on launch whenever a tiled display had a
+        // video wallpaper. Construction must not crash.
+        let url = URL(fileURLWithPath: "/tmp/does-not-exist.mp4")
+        let engine = VideoEngine(videoURL: url, fitMode: .tile)
+        XCTAssertNotNil(engine.layer)
+    }
+
     func testVideoEngineMuteToggle() {
         let url = URL(fileURLWithPath: "/tmp/does-not-exist.mp4")
         let engine = VideoEngine(videoURL: url)

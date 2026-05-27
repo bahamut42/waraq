@@ -144,10 +144,21 @@ final class VideoEngine: NSObject {
             containerLayer.addSublayer(playerLayer)
 
         case .tile:
-            let natural = naturalSize(fallback: CGSize(
+            let rawNatural = naturalSize(fallback: CGSize(
                 width: displayBounds.width / 3,
                 height: displayBounds.height / 3
             ))
+            // Guard against a zero/degenerate tile size. At launch
+            // the container bounds can be .zero and the video's
+            // presentationSize may not have loaded yet, so the
+            // fallback collapses to 0. A 0-width tile makes the
+            // column/row count 0/0 = NaN, and Int(NaN) traps with
+            // "Double value cannot be converted to Int". applyFitMode
+            // re-runs once the layer is sized and the size loads.
+            let natural = CGSize(
+                width: max(1, rawNatural.width),
+                height: max(1, rawNatural.height)
+            )
             playerLayer.videoGravity = .resize
             playerLayer.autoresizingMask = []
             playerLayer.frame = CGRect(
@@ -156,12 +167,8 @@ final class VideoEngine: NSObject {
 
             // Two-level CAReplicator: horizontal row, then vertical
             // stack of rows.
-            let cols = max(1, Int(ceil(
-                displayBounds.width / natural.width
-            )))
-            let rows = max(1, Int(ceil(
-                displayBounds.height / natural.height
-            )))
+            let cols = tileCount(total: displayBounds.width, unit: natural.width)
+            let rows = tileCount(total: displayBounds.height, unit: natural.height)
 
             let horizontal = CAReplicatorLayer()
             horizontal.instanceCount = cols
@@ -195,6 +202,19 @@ final class VideoEngine: NSObject {
         let p = playerItem.presentationSize
         if p == .zero { return fallback }
         return p
+    }
+
+    /// Number of `unit`-sized tiles needed to cover `total`, clamped
+    /// to a finite, sane range. Returns 1 for degenerate inputs
+    /// (zero/NaN/infinite) so `Int(...)` can never trap on a NaN or
+    /// infinite value.
+    private func tileCount(total: CGFloat, unit: CGFloat) -> Int {
+        guard total > 0, unit > 0, total.isFinite, unit.isFinite else {
+            return 1
+        }
+        let count = ceil(total / unit)
+        guard count.isFinite, count >= 1 else { return 1 }
+        return Int(min(count, 1000))
     }
 
     deinit {
