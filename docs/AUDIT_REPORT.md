@@ -46,8 +46,8 @@ App survived navigating all 8 panes (no crash).
 ## File inventory
 
 Swift source files (App/Core/Tests/Scripts/Engines): **75**
-Files with GPL v3 header: **65**
-Missing headers: **10** — all under `Engines/` (see finding below).
+Files with GPL v3 header: **75** (Engines gap closed — see finding 1).
+Missing headers: **0**.
 
 App icon PNGs in `Resources/Assets.xcassets/AppIcon.appiconset/`: 11.
 Procedural wallpaper definitions in `ProceduralFactory`: 5 (+ the
@@ -81,18 +81,15 @@ These were accepted scope decisions, not bugs:
 
 ## Findings requiring action before release
 
-1. **GPL header missing on `Engines/` (10 files).** Phase 9.12 applied
-   the GPL v3 header to `App/`, `Core/`, `Tests/`, and `Scripts/` but
-   did not include `Engines/`. The following lack the header:
-   `Engines/ImageEngine.swift`, `Engines/GifEngine.swift`,
-   `Engines/VideoEngine.swift`, `Engines/GradientWallpaper.swift`,
-   `Engines/Procedural/{AuroraView, SynthwaveView, MatrixRainView,
-   StarfieldView, NeuralNetworkView, ProceduralFactory}.swift`.
-   Not a crash/build/test issue (the build is green), but for a clean
-   GPL v3 release the relicense should be complete. **Recommended: a
-   quick header pass on `Engines/` (mirroring 9.12) before Phase 10**,
-   confirming `.swiftformat`'s `--header ignore` preserves them, then
-   rebuild/retest. This audit did NOT modify code (audit-only phase).
+1. **[RESOLVED] GPL header missing on `Engines/` (10 files).** Phase
+   9.12 applied the GPL v3 header to `App/`, `Core/`, `Tests/`, and
+   `Scripts/` but did not include `Engines/` (the video/gif/image
+   engines, `GradientWallpaper`, the 5 procedural views, and
+   `ProceduralFactory`). **Fixed in this phase's follow-up commit**:
+   the GPL v3 header was added to all 10 `Engines/` files, confirmed
+   that `.swiftformat`'s `--header ignore` preserves them (75/75 still
+   headed after a format pass), lint clean, build green, 54/54 tests
+   pass. The relicense is now complete (75/75 source files).
 
 No other automated findings. Tests, build, smoke launch, pane
 navigation, bundle metadata, and telemetry checks all passed.

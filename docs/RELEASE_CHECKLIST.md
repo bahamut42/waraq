@@ -16,9 +16,9 @@ tracking use the "v1.0.0 Release Verification" Issue).
 
 ## 0. Action items from the automated audit (Phase 9.13)
 
-- [ ] **GPL header added to all 10 `Engines/` Swift files** (Phase 9.12
-  omitted `Engines/`; relicense currently 65/75 files — see
-  `docs/AUDIT_REPORT.md`). Resolve before release.
+- [x] **GPL header added to all 10 `Engines/` Swift files** (Phase 9.12
+  omitted `Engines/`). Fixed: all 75/75 source files now headed,
+  format-stable, build green, 54/54 tests pass.
 
 ## 1. Launch and basic lifecycle
 
@@ -214,8 +214,8 @@ tracking use the "v1.0.0 Release Verification" Issue).
 - [x] LSUIElement = 1 (audit verified)
 - [x] NSHumanReadableCopyright mentions GPL v3 (audit verified)
 - [ ] App icon renders correctly in Finder, Dock (when shown), Spotlight
-- [ ] **Every Swift source file has the GPL v3 header** — currently
-      FAILING: 10 `Engines/` files lack it (see section 0 / AUDIT_REPORT)
+- [x] **Every Swift source file has the GPL v3 header** (75/75 — the
+      `Engines/` gap was closed in the 9.13 follow-up)
 - [x] LICENSE is canonical GPL v3 text (audit: 35,149 bytes)
 - [x] No COPYING duplicate (removed in 9.12)
 - [x] GitHub detects "GPL-3.0" as the repo license badge
@@ -270,7 +270,7 @@ tracking use the "v1.0.0 Release Verification" Issue).
 Once everything above is checked and any issues fixed (or accepted as
 known limitations), this section gates the Phase 10 release execution.
 
-- [ ] Section 0 action item (Engines GPL headers) resolved
+- [x] Section 0 action item (Engines GPL headers) resolved
 - [ ] All P0 items above are checked or explicitly accepted
 - [ ] Version number bumped from 0.1.0 to v1 release number (e.g. 1.0.0)
 - [ ] Release notes draft prepared
