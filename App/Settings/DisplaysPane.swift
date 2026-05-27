@@ -85,6 +85,9 @@ struct DisplaysPane: View {
                     DisplayRow(
                         display: display,
                         enabled: settings.enabled,
+                        isPrimary: WaraqPrimaryStore.isPrimary(
+                            displayID: display.id
+                        ),
                         onToggleEnabled: { newValue in
                             displayManager.setDisplayEnabled(
                                 displayID: display.id,
@@ -93,7 +96,8 @@ struct DisplaysPane: View {
                         },
                         onConfigure: {
                             configuringDisplay = display
-                        }
+                        },
+                        onSetPrimary: { setAsPrimary(display) }
                     )
                     if index < displayManager.displays.count - 1 {
                         Divider()
@@ -101,6 +105,16 @@ struct DisplaysPane: View {
                 }
             }
         }
+    }
+
+    /// Persist the user's chosen Waraq Primary display, then nudge the
+    /// manager so the MAIN badge re-renders on the right row.
+    private func setAsPrimary(_ display: DisplayManager.DisplayInfo) {
+        guard let hwID = DisplayHardwareID(displayID: display.id) else {
+            return
+        }
+        WaraqPrimaryStore.chosenHardwareID = hwID.key
+        displayManager.objectWillChange.send()
     }
 
     private var changeBehaviorSection: some View {
@@ -174,10 +188,26 @@ struct DisplaysPane: View {
 private struct DisplayRow: View {
     let display: DisplayManager.DisplayInfo
     let enabled: Bool
+    let isPrimary: Bool
     let onToggleEnabled: (Bool) -> Void
     let onConfigure: () -> Void
+    let onSetPrimary: () -> Void
 
     var body: some View {
+        rowContent
+            .contextMenu {
+                Button(action: onSetPrimary) {
+                    if isPrimary {
+                        Label("Currently Primary", systemImage: "checkmark")
+                    } else {
+                        Label("Set as Waraq Primary", systemImage: "star")
+                    }
+                }
+                .disabled(isPrimary)
+            }
+    }
+
+    private var rowContent: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(LinearGradient(
@@ -195,10 +225,10 @@ private struct DisplayRow: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 3)
                         .stroke(
-                            display.isMain
+                            isPrimary
                                 ? Color.accentColor.opacity(0.45)
                                 : Color.primary.opacity(0.10),
-                            lineWidth: display.isMain ? 1.5 : 0.5
+                            lineWidth: isPrimary ? 1.5 : 0.5
                         )
                 )
                 .opacity(enabled ? 1.0 : 0.55)
@@ -208,7 +238,7 @@ private struct DisplayRow: View {
                     Text(display.name)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(enabled ? .primary : .secondary)
-                    if display.isMain {
+                    if isPrimary {
                         Text("MAIN")
                             .font(.system(size: 9, weight: .medium))
                             .tracking(0.3)

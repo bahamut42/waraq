@@ -330,15 +330,11 @@ struct PerformancePane: View {
                 .padding(.vertical, 11)
                 .padding(.horizontal, 14)
 
-                Divider()
-                SettingRow(
-                    title: "Yield to GPU-heavy apps",
-                    sublabel: "Detection arrives in a future phase"
-                ) {
-                    Toggle("", isOn: $yieldToGPUApps)
-                        .toggleStyle(.switch).labelsHidden()
-                        .disabled(true)
-                }
+                // "Yield to GPU-heavy apps" toggle removed in Phase 9.9
+                // pending the detection implementation — a disabled
+                // control with "arrives in a future phase" read as
+                // half-finished. The $yieldToGPUApps UserDefaults key
+                // stays so a future re-enable doesn't reset user state.
             }
         }
     }

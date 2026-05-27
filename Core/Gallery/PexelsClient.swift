@@ -1,10 +1,11 @@
 import Foundation
+import os
 
 enum PexelsError: Error, LocalizedError {
     case missingAPIKey
     case invalidResponse
-    case httpError(Int)
-    case decoding(Error)
+    case httpError(Int, rawResponse: String?)
+    case decoding(Error, rawResponse: String?)
     case noPlayableFile
 
     var errorDescription: String? {
@@ -13,10 +14,10 @@ enum PexelsError: Error, LocalizedError {
             "Pexels API key is missing."
         case .invalidResponse:
             "Pexels returned an invalid response."
-        case let .httpError(code):
-            "Pexels returned HTTP \(code)."
-        case let .decoding(error):
-            "Pexels response decoding failed: \(error.localizedDescription)"
+        case let .httpError(code, raw):
+            GalleryErrorText.http("Pexels", code: code, raw: raw)
+        case let .decoding(error, raw):
+            GalleryErrorText.decoding("Pexels", error: error, raw: raw)
         case .noPlayableFile:
             "Pexels returned a video with no MP4 file."
         }
@@ -54,12 +55,23 @@ struct PexelsClient {
         // (no "Bearer" prefix — unusual, but per Pexels docs).
         request.setValue(key, forHTTPHeaderField: "Authorization")
 
+        Logger.gallery.info(
+            "Pexels search: query=\(query, privacy: .public) url=\(url.absoluteString, privacy: .public)"
+        )
+
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw PexelsError.invalidResponse
         }
+        Logger.gallery.info(
+            "Pexels HTTP \(http.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)"
+        )
         guard http.statusCode == 200 else {
-            throw PexelsError.httpError(http.statusCode)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "Pexels HTTP \(http.statusCode, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw PexelsError.httpError(http.statusCode, rawResponse: raw)
         }
 
         do {
@@ -67,12 +79,19 @@ struct PexelsClient {
                 PexelsResponse.self, from: data
             )
             let items = decoded.videos.compactMap { $0.toGalleryItem() }
+            Logger.gallery.info(
+                "Pexels decoded \(items.count, privacy: .public) items"
+            )
             GalleryCache.store(
                 items, source: .pexels, query: query
             )
             return items
         } catch {
-            throw PexelsError.decoding(error)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "Pexels decode failed: \(error.localizedDescription, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw PexelsError.decoding(error, rawResponse: raw)
         }
     }
 }

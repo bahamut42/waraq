@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Hosts the gallery search experience. A source picker sits at the
@@ -129,13 +130,7 @@ struct GalleryView: View {
         if viewModel.isSearching {
             centered { ProgressView("Searching…") }
         } else if let error = viewModel.error {
-            centered {
-                messageBlock(
-                    icon: "exclamationmark.triangle",
-                    title: "Search failed",
-                    subtitle: error
-                )
-            }
+            errorCard(error)
         } else if viewModel.items.isEmpty, viewModel.hasSearched {
             centered {
                 messageBlock(
@@ -155,6 +150,44 @@ struct GalleryView: View {
         } else {
             grid
         }
+    }
+
+    /// Full error display with the raw API response and a copy button,
+    /// so decoding/HTTP failures are diagnosable from the UI alone.
+    private func errorCard(_ error: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Search failed")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(error, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help("Copy error to clipboard")
+            }
+            ScrollView {
+                Text(error)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 200)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
     }
 
     private var grid: some View {

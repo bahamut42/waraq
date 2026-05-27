@@ -1,18 +1,19 @@
 import Foundation
+import os
 
 enum NASAError: Error, LocalizedError {
     case invalidResponse
-    case httpError(Int)
-    case decoding(Error)
+    case httpError(Int, rawResponse: String?)
+    case decoding(Error, rawResponse: String?)
 
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
             "NASA returned an invalid response."
-        case let .httpError(code):
-            "NASA returned HTTP \(code)."
-        case let .decoding(error):
-            "NASA response decoding failed: \(error.localizedDescription)"
+        case let .httpError(code, raw):
+            GalleryErrorText.http("NASA", code: code, raw: raw)
+        case let .decoding(error, raw):
+            GalleryErrorText.decoding("NASA", error: error, raw: raw)
         }
     }
 }
@@ -40,12 +41,23 @@ struct NASAClient {
             throw NASAError.invalidResponse
         }
 
+        Logger.gallery.info(
+            "NASA search: query=\(query, privacy: .public) url=\(url.absoluteString, privacy: .public)"
+        )
+
         let (data, response) = try await URLSession.shared.data(from: url)
         guard let http = response as? HTTPURLResponse else {
             throw NASAError.invalidResponse
         }
+        Logger.gallery.info(
+            "NASA HTTP \(http.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)"
+        )
         guard http.statusCode == 200 else {
-            throw NASAError.httpError(http.statusCode)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "NASA HTTP \(http.statusCode, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw NASAError.httpError(http.statusCode, rawResponse: raw)
         }
 
         let searchResult: NASASearchResponse
@@ -54,7 +66,11 @@ struct NASAClient {
                 NASASearchResponse.self, from: data
             )
         } catch {
-            throw NASAError.decoding(error)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "NASA decode failed: \(error.localizedDescription, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw NASAError.decoding(error, rawResponse: raw)
         }
 
         // First 20 to match the other sources' page size.
@@ -73,6 +89,9 @@ struct NASAClient {
             return resolved
         }
 
+        Logger.gallery.info(
+            "NASA resolved \(items.count, privacy: .public) of \(metadata.count, privacy: .public) items"
+        )
         GalleryCache.store(items, source: .nasa, query: query)
         return items
     }

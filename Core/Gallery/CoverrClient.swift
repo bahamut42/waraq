@@ -1,10 +1,11 @@
 import Foundation
+import os
 
 enum CoverrError: Error, LocalizedError {
     case missingAPIKey
     case invalidResponse
-    case httpError(Int)
-    case decoding(Error)
+    case httpError(Int, rawResponse: String?)
+    case decoding(Error, rawResponse: String?)
 
     var errorDescription: String? {
         switch self {
@@ -12,10 +13,10 @@ enum CoverrError: Error, LocalizedError {
             "Coverr API key is missing."
         case .invalidResponse:
             "Coverr returned an invalid response."
-        case let .httpError(code):
-            "Coverr returned HTTP \(code)."
-        case let .decoding(error):
-            "Coverr response decoding failed: \(error.localizedDescription)"
+        case let .httpError(code, raw):
+            GalleryErrorText.http("Coverr", code: code, raw: raw)
+        case let .decoding(error, raw):
+            GalleryErrorText.decoding("Coverr", error: error, raw: raw)
         }
     }
 }
@@ -50,12 +51,23 @@ struct CoverrClient {
             "Bearer \(key)", forHTTPHeaderField: "Authorization"
         )
 
+        Logger.gallery.info(
+            "Coverr search: query=\(query, privacy: .public) url=\(url.absoluteString, privacy: .public)"
+        )
+
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw CoverrError.invalidResponse
         }
+        Logger.gallery.info(
+            "Coverr HTTP \(http.statusCode, privacy: .public) bytes=\(data.count, privacy: .public)"
+        )
         guard http.statusCode == 200 else {
-            throw CoverrError.httpError(http.statusCode)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "Coverr HTTP \(http.statusCode, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw CoverrError.httpError(http.statusCode, rawResponse: raw)
         }
 
         do {
@@ -63,12 +75,19 @@ struct CoverrClient {
                 CoverrResponse.self, from: data
             )
             let items = decoded.hits.compactMap { $0.toGalleryItem() }
+            Logger.gallery.info(
+                "Coverr decoded \(items.count, privacy: .public) items"
+            )
             GalleryCache.store(
                 items, source: .coverr, query: query
             )
             return items
         } catch {
-            throw CoverrError.decoding(error)
+            let raw = GalleryErrorText.rawSnippet(data)
+            Logger.gallery.error(
+                "Coverr decode failed: \(error.localizedDescription, privacy: .public) raw=\(raw ?? "<none>", privacy: .public)"
+            )
+            throw CoverrError.decoding(error, rawResponse: raw)
         }
     }
 }
