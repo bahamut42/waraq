@@ -20,7 +20,6 @@ final class GalleryViewModel: ObservableObject {
     /// mirroring the Phase 9.7 dependency-injection pattern.
     private let pixabayClient = PixabayClient()
     private let pexelsClient = PexelsClient()
-    private let coverrClient = CoverrClient()
     private let nasaClient = NASAClient()
     private let downloader: GalleryDownloader
 
@@ -97,7 +96,6 @@ final class GalleryViewModel: ObservableObject {
         switch source {
         case .pixabay: try await pixabayClient.search(query: query)
         case .pexels: try await pexelsClient.search(query: query)
-        case .coverr: try await coverrClient.search(query: query)
         case .nasa: try await nasaClient.search(query: query)
         }
     }

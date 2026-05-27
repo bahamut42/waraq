@@ -18,20 +18,30 @@ enum NASAError: Error, LocalizedError {
     }
 }
 
-/// NASA Image and Video Library client. No API key required for
-/// low-volume use. The search endpoint returns metadata only, so we
-/// batch-fetch each hit's asset manifest in parallel (TaskGroup) to
-/// resolve playable MP4 URLs. The fully resolved items are cached for
-/// 24h so repeat searches don't re-run all the manifest fetches.
+/// NASA Image and Video Library client. No API key required.
+///
+/// Strategy: skip the per-item asset-manifest fetch. The previous
+/// version ran ~20 parallel manifest requests after each search and
+/// silently dropped every item when URL extraction missed — producing
+/// empty grids in production. Instead we construct MP4 URLs directly
+/// from `nasa_id` using NASA's documented file-naming convention:
+///
+///   https://images-assets.nasa.gov/video/{id}/{id}~small.mp4
+///   https://images-assets.nasa.gov/video/{id}/{id}~medium.mp4
+///   https://images-assets.nasa.gov/video/{id}/{id}~large.mp4
+///
+/// The thumbnail comes from the search response's `links` array
+/// (~thumb.jpg). Some nasa_ids contain spaces, so path components are
+/// percent-encoded with .urlPathAllowed. One request per search.
 struct NASAClient {
     static let searchEndpoint = "https://images-api.nasa.gov/search"
+    private static let assetBase = "https://images-assets.nasa.gov/video"
 
     func search(query: String) async throws -> [GalleryItem] {
         if let cached = GalleryCache.fetch(source: .nasa, query: query) {
             return cached
         }
 
-        // Step 1: search for video metadata.
         var components = URLComponents(string: Self.searchEndpoint)!
         components.queryItems = [
             URLQueryItem(name: "q", value: query),
@@ -73,97 +83,78 @@ struct NASAClient {
             throw NASAError.decoding(error, rawResponse: raw)
         }
 
-        // First 20 to match the other sources' page size.
-        let metadata = Array(searchResult.collection.items.prefix(20))
-
-        // Step 2: resolve asset URLs in parallel. Items that can't be
-        // resolved (non-standard naming, no MP4) are dropped silently.
-        let items = await withTaskGroup(of: GalleryItem?.self) { group in
-            for entry in metadata {
-                group.addTask { await Self.resolveAsset(entry: entry) }
-            }
-            var resolved: [GalleryItem] = []
-            for await item in group {
-                if let item { resolved.append(item) }
-            }
-            return resolved
-        }
+        let items = searchResult.collection.items
+            .prefix(20)
+            .compactMap { Self.makeItem(from: $0) }
 
         Logger.gallery.info(
-            "NASA resolved \(items.count, privacy: .public) of \(metadata.count, privacy: .public) items"
+            "NASA built \(items.count, privacy: .public) of \(searchResult.collection.items.count, privacy: .public) hits"
         )
-        GalleryCache.store(items, source: .nasa, query: query)
-        return items
+        let result = Array(items)
+        GalleryCache.store(result, source: .nasa, query: query)
+        return result
     }
 
-    /// Resolve one search hit into a GalleryItem by fetching its asset
-    /// manifest. Returns nil if the asset has no usable MP4 URLs.
-    private static func resolveAsset(
-        entry: NASACollectionItem
-    ) async -> GalleryItem? {
-        guard let meta = entry.data.first,
-              let manifestURL = URL(string: entry.href) else { return nil }
+    /// Build a GalleryItem from a search entry by predicting its MP4
+    /// URLs from nasa_id. Returns nil only if the id can't be encoded.
+    private static func makeItem(
+        from entry: NASACollectionItem
+    ) -> GalleryItem? {
+        guard let meta = entry.data.first else { return nil }
+        let nasaID = meta.nasaID
+        guard let encoded = nasaID.addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed
+        ) else { return nil }
 
-        guard let (manifestData, _) = try? await URLSession.shared
-            .data(from: manifestURL),
-            let manifest = try? JSONDecoder().decode(
-                NASAAssetManifest.self, from: manifestData
-            ) else { return nil }
+        let folder = "\(assetBase)/\(encoded)"
+        let smallMP4 = "\(folder)/\(encoded)~small.mp4"
+        let mediumMP4 = "\(folder)/\(encoded)~medium.mp4"
+        let largeMP4 = "\(folder)/\(encoded)~large.mp4"
 
-        let allURLs = manifest.collection.items
-            .compactMap(\.href)
-            .compactMap { URL(string: $0) }
-        let mp4URLs = allURLs.filter {
-            $0.pathExtension.lowercased() == "mp4"
-        }
-        let imageURLs = allURLs.filter {
-            ["jpg", "jpeg", "png"].contains($0.pathExtension.lowercased())
-        }
+        // Thumbnail: prefer the entry's links (~thumb/~preview image),
+        // else the predicted ~thumb.jpg.
+        let thumbFromLinks = entry.links?.first { link in
+            let isImage = link.render == "image" || link.rel == "preview"
+            let lower = link.href.lowercased()
+            return isImage
+                && (lower.contains("~thumb") || lower.contains("~preview"))
+        }?.href
+        let predictedThumb = "\(folder)/\(encoded)~thumb.jpg"
 
-        func mp4(_ marker: String) -> URL? {
-            mp4URLs.first { $0.lastPathComponent.contains(marker) }
-        }
-
-        // Never use ~orig (can be hundreds of MB to multiple GB).
-        let small = mp4("~small") ?? mp4("~medium")
-        let large = mp4("~large") ?? mp4("~medium") ?? small
-        guard let preview = small ?? large,
-              let download = large ?? small else { return nil }
-
-        let thumbnail = imageURLs.first {
-            let name = $0.lastPathComponent
-            return name.contains("~thumb") || name.contains("~preview")
-        } ?? imageURLs.first ?? preview
+        guard let thumbnailURL = URL(
+            string: thumbFromLinks ?? predictedThumb
+        ),
+            let previewURL = URL(string: smallMP4) ?? URL(string: mediumMP4),
+            let downloadURL = URL(string: largeMP4) ?? URL(string: mediumMP4) else { return nil }
 
         let attribution = GalleryAttribution(
-            creatorName: meta.photographer ?? "NASA",
+            creatorName: meta.secondaryCreator ?? meta.center ?? "NASA",
             creatorURL: URL(string: "https://www.nasa.gov/"),
             sourceName: "NASA",
             sourceURL: URL(string: "https://images.nasa.gov/")!
         )
 
-        let page = URL(
-            string: "https://images.nasa.gov/details/\(meta.nasaID)"
-        ) ?? URL(string: "https://images.nasa.gov/")!
+        let page = URL(string: "https://images.nasa.gov/details/\(encoded)")
+            ?? URL(string: "https://images.nasa.gov/")!
 
         return GalleryItem(
-            id: "nasa-\(meta.nasaID)",
+            id: "nasa-\(nasaID)",
             source: .nasa,
             title: meta.title ?? "NASA Video",
             tags: meta.keywords ?? [],
-            thumbnailURL: thumbnail,
-            previewVideoURL: preview,
-            downloadVideoURL: download,
-            width: 1920, // NASA doesn't reliably expose dimensions
+            thumbnailURL: thumbnailURL,
+            previewVideoURL: previewURL,
+            downloadVideoURL: downloadURL,
+            width: 1920, // NASA doesn't expose dimensions reliably
             height: 1080,
-            duration: 0, // not in NASA metadata
+            duration: 0, // not in search metadata
             attribution: attribution,
             pageURL: page
         )
     }
 }
 
-// MARK: - NASA JSON shapes
+// MARK: - NASA JSON shape
 
 private struct NASASearchResponse: Decodable {
     let collection: NASASearchCollection
@@ -176,6 +167,7 @@ private struct NASASearchCollection: Decodable {
 private struct NASACollectionItem: Decodable {
     let href: String
     let data: [NASAItemData]
+    let links: [NASALink]?
 }
 
 private struct NASAItemData: Decodable {
@@ -183,24 +175,22 @@ private struct NASAItemData: Decodable {
     let title: String?
     let description: String?
     let keywords: [String]?
-    let photographer: String?
     let mediaType: String?
+    let center: String?
+    let secondaryCreator: String?
+    let dateCreated: String?
 
     private enum CodingKeys: String, CodingKey {
-        case title, description, keywords, photographer
+        case title, description, keywords, center
         case nasaID = "nasa_id"
         case mediaType = "media_type"
+        case secondaryCreator = "secondary_creator"
+        case dateCreated = "date_created"
     }
 }
 
-private struct NASAAssetManifest: Decodable {
-    let collection: NASAAssetCollection
-}
-
-private struct NASAAssetCollection: Decodable {
-    let items: [NASAAssetItem]
-}
-
-private struct NASAAssetItem: Decodable {
-    let href: String?
+private struct NASALink: Decodable {
+    let href: String
+    let rel: String?
+    let render: String?
 }

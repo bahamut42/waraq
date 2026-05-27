@@ -82,12 +82,16 @@ final class GalleryTests: XCTestCase {
     func testGallerySourceImplementedFlag() {
         XCTAssertTrue(GallerySource.pixabay.isImplemented)
         XCTAssertTrue(GallerySource.pexels.isImplemented)
-        XCTAssertTrue(GallerySource.coverr.isImplemented)
         XCTAssertTrue(GallerySource.nasa.isImplemented)
     }
 
-    func testNASASourceMarkedImplemented() {
-        XCTAssertTrue(GallerySource.nasa.isImplemented)
+    func testGallerySourceHasNoCoverr() {
+        // Coverr was removed in Phase 9.10; three sources remain.
+        XCTAssertEqual(GallerySource.allCases.count, 3)
+        XCTAssertEqual(
+            Set(GallerySource.allCases.map(\.rawValue)),
+            ["pixabay", "pexels", "nasa"]
+        )
     }
 
     func testNASARequiresNoAPIKey() {
@@ -97,33 +101,48 @@ final class GalleryTests: XCTestCase {
         XCTAssertTrue(GallerySource.pixabay.requiresAPIKey)
     }
 
-    func testCoverrSourceMarkedImplemented() {
-        XCTAssertTrue(GallerySource.coverr.isImplemented)
+    func testNASAIDPercentEncodingEscapesSpaces() {
+        // nasa_ids with spaces must encode for path use, or the
+        // constructed MP4 URLs are invalid.
+        let testID = "Seeing Earth as Only NASA Can"
+        let encoded = testID.addingPercentEncoding(
+            withAllowedCharacters: .urlPathAllowed
+        )
+        XCTAssertEqual(encoded, "Seeing%20Earth%20as%20Only%20NASA%20Can")
     }
 
-    func testCoverrCacheRoundTrip() throws {
-        let item = try GalleryItem(
-            id: "coverr-test-\(UUID().uuidString)",
-            source: .coverr,
-            title: "Test",
-            tags: ["nature"],
-            thumbnailURL: XCTUnwrap(URL(string: "https://example.com/t.jpg")),
-            previewVideoURL: XCTUnwrap(URL(string: "https://example.com/p.mp4")),
-            downloadVideoURL: XCTUnwrap(URL(string: "https://example.com/d.mp4")),
-            width: 1920, height: 1080, duration: 15,
-            attribution: GalleryAttribution(
-                creatorName: "Test",
-                creatorURL: nil,
-                sourceName: "Coverr",
-                sourceURL: XCTUnwrap(URL(string: "https://coverr.co/"))
-            ),
-            pageURL: XCTUnwrap(URL(string: "https://coverr.co/videos/abc"))
+    func testPexelsDecodesNullQuality() throws {
+        // Real Pexels responses return quality: null for every file.
+        // Decoding must not throw on that.
+        let json = """
+        {
+          "videos": [
+            {
+              "id": 25961000, "width": 2160, "height": 3840,
+              "duration": 2, "tags": [],
+              "url": "https://www.pexels.com/video/test-25961000/",
+              "image": "https://images.pexels.com/videos/25961000/test.jpeg",
+              "user": {
+                "id": 1, "name": "Nisasu",
+                "url": "https://www.pexels.com/@nisasu"
+              },
+              "video_files": [
+                {
+                  "id": 1, "quality": null, "file_type": "video/mp4",
+                  "width": 720, "height": 1280, "fps": 60.0,
+                  "link": "https://videos.pexels.com/test-720.mp4",
+                  "size": 100
+                }
+              ]
+            }
+          ]
+        }
+        """
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        XCTAssertNoThrow(
+            try JSONDecoder().decode(PexelsProbe.self, from: data),
+            "Pexels payload with null quality must decode"
         )
-        let query = "test-coverr-\(UUID().uuidString)"
-        GalleryCache.store([item], source: .coverr, query: query)
-        let fetched = GalleryCache.fetch(source: .coverr, query: query)
-        XCTAssertEqual(fetched?.first?.source, .coverr)
-        XCTAssertEqual(fetched?.first?.id, item.id)
     }
 
     private func makeTestItem(
@@ -146,5 +165,46 @@ final class GalleryTests: XCTestCase {
             attribution: attribution,
             pageURL: URL(string: "https://example.com/page")!
         )
+    }
+}
+
+// MARK: - Pexels schema contract
+
+/// Mirrors PexelsClient's private response shape (which can't be
+/// reached from tests) to guard the field optionality that the live
+/// API requires — chiefly `quality` being null on every file. If the
+/// real structs drift from this, the client breaks; this catches it.
+private struct PexelsProbe: Decodable {
+    let videos: [Video]
+
+    struct Video: Decodable {
+        let id: Int
+        let width: Int
+        let height: Int
+        let duration: Int
+        let image: String
+        let url: String
+        let videoFiles: [File]
+
+        private enum CodingKeys: String, CodingKey {
+            case id, width, height, duration, image, url
+            case videoFiles = "video_files"
+        }
+    }
+
+    struct File: Decodable {
+        let id: Int
+        let quality: String?
+        let fileType: String?
+        let width: Int
+        let height: Int
+        let fps: Double?
+        let link: String
+        let size: Int?
+
+        private enum CodingKeys: String, CodingKey {
+            case id, quality, width, height, fps, link, size
+            case fileType = "file_type"
+        }
     }
 }

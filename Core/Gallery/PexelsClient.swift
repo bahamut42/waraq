@@ -118,20 +118,28 @@ private struct PexelsVideo: Decodable {
     }
 
     func toGalleryItem() -> GalleryItem? {
-        // MP4 files only; pick SD for preview, HD (not UHD) for download.
-        let mp4Files = videoFiles.filter { $0.fileType == "video/mp4" }
+        // `quality` is null for every entry in current Pexels responses,
+        // so selection is width-based. MP4 files: accept file_type
+        // containing "mp4", or a nil file_type whose link ends in .mp4.
+        let mp4Files = videoFiles.filter { file in
+            if let type = file.fileType, type.contains("mp4") { return true }
+            return file.link.lowercased().hasSuffix(".mp4")
+        }
         guard !mp4Files.isEmpty,
               let thumb = URL(string: image),
               let page = URL(string: url) else { return nil }
 
-        let preview = mp4Files.first { $0.quality == "sd" } ?? mp4Files[0]
+        let sorted = mp4Files.sorted { $0.width < $1.width }
 
-        // Prefer HD (~1080p); fall back to the widest non-UHD, then any.
-        let hd = mp4Files.first { $0.quality == "hd" }
-        let widestNonUHD = mp4Files
-            .filter { $0.quality != "uhd" }
-            .max { $0.width < $1.width }
-        let download = hd ?? widestNonUHD ?? mp4Files[0]
+        // Preview: smallest at/above 540px wide (skip tiny mobile
+        // sizes); fall back to the smallest available.
+        let preview = sorted.first { $0.width >= 540 } ?? sorted[0]
+
+        // Download: largest at/below 1920px (FHD), avoiding 4K to keep
+        // file sizes sane; fall back to widest below 2160, then widest.
+        let download = sorted.last { $0.width <= 1920 }
+            ?? sorted.last { $0.width < 2160 }
+            ?? sorted[sorted.count - 1]
 
         guard let previewURL = URL(string: preview.link),
               let downloadURL = URL(string: download.link) else { return nil }
@@ -183,14 +191,16 @@ private struct PexelsUser: Decodable {
 
 private struct PexelsVideoFile: Decodable {
     let id: Int
-    let quality: String
-    let fileType: String
+    let quality: String? // null for every entry in current API responses
+    let fileType: String? // defensively optional
     let width: Int
     let height: Int
+    let fps: Double? // present in current responses
     let link: String
+    let size: Int? // present in current responses
 
     private enum CodingKeys: String, CodingKey {
-        case id, quality, width, height, link
+        case id, quality, width, height, fps, link, size
         case fileType = "file_type"
     }
 }
