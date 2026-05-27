@@ -62,11 +62,26 @@ If you want zero network involvement: don't put API keys in. Use Waraq purely as
 
 ## Install
 
-Download the latest `.dmg` from the [Releases page](https://github.com/bahamut42/waraq/releases). Drag `Waraq.app` to Applications. Launch.
+Two ways to install Waraq on your Mac. You do **not** need Xcode or to build anything — just download and run.
 
-The first launch shows a quick setup wizard - pick your displays, choose a starter wallpaper, set performance preferences, done.
+### Option 1: DMG (drag and drop)
 
-Or build from source (see Building below).
+1. Download `Waraq-1.0.0-rc1.dmg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
+2. Double-click the downloaded file
+3. Drag the Waraq icon onto the Applications folder
+4. Eject the disk image
+5. Open Applications and launch Waraq
+
+### Option 2: PKG (guided installer)
+
+1. Download `Waraq-1.0.0-rc1.pkg` from the [latest Release](https://github.com/bahamut42/waraq/releases)
+2. Double-click to launch the installer
+3. Follow the wizard (Continue → agree to GPL v3 → Install)
+4. Waraq is installed to Applications
+
+Both methods install to `/Applications/Waraq.app` — pick whichever you prefer. The first launch shows a quick setup wizard (displays, a starter wallpaper, performance preferences).
+
+> **This is a release candidate.** v1.0.0-rc1 is a beta — please report anything broken at the [Issues page](https://github.com/bahamut42/waraq/issues).
 
 ## Quick tour
 
@@ -168,7 +183,9 @@ If Waraq is using more resources than you're comfortable with, you can dial all 
 - Roughly 80 MB disk for the app itself
 - More disk for whatever wallpapers you import (your call)
 
-## Building from source
+## Building from source (developers only)
+
+You do **not** need to do this to use Waraq — [download a DMG or PKG](#install) above. This section is only for people who want to modify the code or contribute.
 
 Requires Xcode 16+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 

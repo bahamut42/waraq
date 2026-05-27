@@ -37,10 +37,6 @@ struct DisplaysPane: View {
                 connectedSection
 
                 changeBehaviorSection
-
-                if isAdvanced {
-                    placeholderAdvancedSection
-                }
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 24)
@@ -181,28 +177,9 @@ struct DisplaysPane: View {
         }
     }
 
-    private var placeholderAdvancedSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("COLOR AND HDR")
-                .font(.system(size: 11, weight: .medium))
-                .tracking(0.5)
-                .foregroundStyle(.secondary)
-                .padding(.top, 22)
-                .padding(.bottom, 8)
-                .padding(.horizontal, 2)
-
-            Card {
-                HStack {
-                    Text("Phase 4: per-display color profile matching and HDR rendering")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.vertical, 11)
-                .padding(.horizontal, 14)
-            }
-        }
-    }
+    // "Color and HDR" section removed in Phase 10 (v1.0.0-rc1).
+    // When per-display ColorSync profile matching and EDR/HDR
+    // rendering ship, restore this section with the actual controls.
 }
 
 private struct DisplayRow: View {
