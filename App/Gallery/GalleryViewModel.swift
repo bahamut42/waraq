@@ -21,11 +21,18 @@ final class GalleryViewModel: ObservableObject {
     private let pixabayClient = PixabayClient()
     private let pexelsClient = PexelsClient()
     private let coverrClient = CoverrClient()
+    private let nasaClient = NASAClient()
     private let downloader: GalleryDownloader
 
     init(library: WallpaperLibrary) {
         downloader = GalleryDownloader(library: library)
-        hasAPIKey = APIKeyStore.hasKey(for: .pixabay)
+        hasAPIKey = Self.keyAvailable(for: .pixabay)
+    }
+
+    /// Whether the source is ready to search: sources that don't need
+    /// a key (NASA) are always ready; the rest need a stored key.
+    private static func keyAvailable(for source: GallerySource) -> Bool {
+        !source.requiresAPIKey || APIKeyStore.hasKey(for: source)
     }
 
     /// Switch the active source. Clears results and re-reads whether
@@ -39,7 +46,7 @@ final class GalleryViewModel: ObservableObject {
         hasSearched = false
         lastAddedTitle = nil
         apiKeyInput = ""
-        hasAPIKey = APIKeyStore.hasKey(for: source)
+        hasAPIKey = Self.keyAvailable(for: source)
     }
 
     func saveAPIKey() {
@@ -54,7 +61,8 @@ final class GalleryViewModel: ObservableObject {
 
     func clearAPIKey() {
         APIKeyStore.setKey(nil, for: selectedSource)
-        hasAPIKey = false
+        // NASA needs no key, so it stays ready even after clearing.
+        hasAPIKey = Self.keyAvailable(for: selectedSource)
         items = []
         hasSearched = false
     }
@@ -90,7 +98,7 @@ final class GalleryViewModel: ObservableObject {
         case .pixabay: try await pixabayClient.search(query: query)
         case .pexels: try await pexelsClient.search(query: query)
         case .coverr: try await coverrClient.search(query: query)
-        case .nasa: [] // stub until 9.8d
+        case .nasa: try await nasaClient.search(query: query)
         }
     }
 

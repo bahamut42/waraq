@@ -83,7 +83,18 @@ final class GalleryTests: XCTestCase {
         XCTAssertTrue(GallerySource.pixabay.isImplemented)
         XCTAssertTrue(GallerySource.pexels.isImplemented)
         XCTAssertTrue(GallerySource.coverr.isImplemented)
-        XCTAssertFalse(GallerySource.nasa.isImplemented)
+        XCTAssertTrue(GallerySource.nasa.isImplemented)
+    }
+
+    func testNASASourceMarkedImplemented() {
+        XCTAssertTrue(GallerySource.nasa.isImplemented)
+    }
+
+    func testNASARequiresNoAPIKey() {
+        // NASA's apiKeySignupURL is nil and it doesn't require a key.
+        XCTAssertNil(GallerySource.nasa.apiKeySignupURL)
+        XCTAssertFalse(GallerySource.nasa.requiresAPIKey)
+        XCTAssertTrue(GallerySource.pixabay.requiresAPIKey)
     }
 
     func testCoverrSourceMarkedImplemented() {

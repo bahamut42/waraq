@@ -39,6 +39,14 @@ enum GallerySource: String, Codable, CaseIterable {
     /// source's own phase.
     var isImplemented: Bool {
         switch self {
+        case .pixabay, .pexels, .coverr, .nasa: true
+        }
+    }
+
+    /// True if this source needs an API key. NASA's public library is
+    /// open for low-volume use, so it skips the key entry entirely.
+    var requiresAPIKey: Bool {
+        switch self {
         case .pixabay, .pexels, .coverr: true
         case .nasa: false
         }

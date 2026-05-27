@@ -31,7 +31,7 @@ struct GalleryPane: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if viewModel.hasAPIKey {
+            if viewModel.hasAPIKey, viewModel.selectedSource.requiresAPIKey {
                 Menu {
                     Button("Change API key…") { viewModel.clearAPIKey() }
                 } label: {
