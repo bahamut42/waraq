@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct WallpaperStep: View {
@@ -43,9 +44,7 @@ struct WallpaperStep: View {
         let isSelected = wallpaper.id == viewModel.selectedWallpaperID
         return VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
-                Rectangle()
-                    .fill(thumbnailGradient(for: wallpaper))
-                    .aspectRatio(16.0 / 10.0, contentMode: .fit)
+                thumbnail(for: wallpaper)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 16))
@@ -72,6 +71,30 @@ struct WallpaperStep: View {
                 )
         )
         .contentShape(Rectangle())
+    }
+
+    /// Real captured thumbnail when available (video/GIF/procedural),
+    /// otherwise the gradient swatch while it's still being generated.
+    @ViewBuilder
+    private func thumbnail(for wallpaper: Wallpaper) -> some View {
+        if library.hasAnyThumbnail(for: wallpaper),
+           let nsImage = NSImage(
+               contentsOf: library.displayThumbnailURL(for: wallpaper)
+           )
+        {
+            Color.clear
+                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+                .overlay(
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFill()
+                )
+                .clipped()
+        } else {
+            Rectangle()
+                .fill(thumbnailGradient(for: wallpaper))
+                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+        }
     }
 
     private func thumbnailGradient(for w: Wallpaper) -> LinearGradient {

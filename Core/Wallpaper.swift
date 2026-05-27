@@ -18,6 +18,12 @@ struct Wallpaper: Codable, Identifiable, Hashable {
         case gifURL
         case image
         case url // DEPRECATED: filtered on load, never spawned
+
+        /// True for SwiftUI-rendered procedural built-ins, whose
+        /// thumbnails are captured offscreen rather than from a file.
+        var isProcedural: Bool {
+            self == .procedural
+        }
     }
 
     init(

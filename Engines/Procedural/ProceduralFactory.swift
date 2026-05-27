@@ -4,21 +4,23 @@ import SwiftUI
 /// Maps a procedural wallpaper key to an NSView (via NSHostingView
 /// around the matching SwiftUI view).
 enum ProceduralFactory {
-    static func makeView(for key: String) -> NSView? {
+    /// The SwiftUI view that renders a procedural key. Single source of
+    /// truth, reused both for the live NSHostingView and for offscreen
+    /// thumbnail capture (ProceduralThumbnailGenerator).
+    static func swiftUIView(for key: String) -> AnyView? {
         switch key {
-        case "aurora":
-            NSHostingView(rootView: AuroraView())
-        case "matrix-rain":
-            NSHostingView(rootView: MatrixRainView())
-        case "synthwave":
-            NSHostingView(rootView: SynthwaveView())
-        case "starfield":
-            NSHostingView(rootView: StarfieldView())
-        case "neural-network":
-            NSHostingView(rootView: NeuralNetworkView())
-        default:
-            nil
+        case "aurora": AnyView(AuroraView())
+        case "matrix-rain": AnyView(MatrixRainView())
+        case "synthwave": AnyView(SynthwaveView())
+        case "starfield": AnyView(StarfieldView())
+        case "neural-network": AnyView(NeuralNetworkView())
+        default: nil
         }
+    }
+
+    static func makeView(for key: String) -> NSView? {
+        guard let view = swiftUIView(for: key) else { return nil }
+        return NSHostingView(rootView: view)
     }
 
     static let allBuiltIns: [Wallpaper] = [

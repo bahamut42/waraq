@@ -53,6 +53,33 @@ final class WallpaperLibrary: ObservableObject {
 
         load()
         seedBuiltInsIfNeeded()
+        generateProceduralThumbnailsIfNeeded()
+    }
+
+    /// Capture a still for any procedural built-in that lacks a cached
+    /// thumbnail, so Library/Configure/Onboarding show its real look
+    /// instead of a flat gradient swatch. Runs off the main loop after
+    /// init so it never blocks launch; posts objectWillChange as each
+    /// thumbnail lands so dependent views refresh.
+    private func generateProceduralThumbnailsIfNeeded() {
+        let procedurals = wallpapers.filter(\.kind.isProcedural)
+        guard !procedurals.isEmpty else { return }
+        let folder = libraryDir
+        Task { @MainActor in
+            var didGenerate = false
+            for wallpaper in procedurals where !hasThumbnail(for: wallpaper) {
+                do {
+                    try ProceduralThumbnailGenerator.generateThumbnail(
+                        for: wallpaper, in: folder
+                    )
+                    didGenerate = true
+                } catch {
+                    // Silent: the gradient swatch fallback still works.
+                    NSLog("Waraq: procedural thumb gen failed for \(wallpaper.id): \(error)")
+                }
+            }
+            if didGenerate { objectWillChange.send() }
+        }
     }
 
     // MARK: Import
