@@ -13,6 +13,8 @@ struct SettingsDetail: View {
                 DisplaysPane(isAdvanced: isAdvanced)
             case .library:
                 LibraryPane()
+            case .gallery:
+                GalleryPane()
             case .performance:
                 PerformancePane(isAdvanced: isAdvanced)
             case .wallpapers:

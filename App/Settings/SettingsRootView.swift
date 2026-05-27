@@ -27,6 +27,7 @@ enum PaneID: String, CaseIterable, Identifiable {
     case general
     case displays
     case library
+    case gallery
     case performance
     case wallpapers
     case diagnostics
@@ -41,6 +42,7 @@ enum PaneID: String, CaseIterable, Identifiable {
         case .general: "General"
         case .displays: "Displays"
         case .library: "Library"
+        case .gallery: "Gallery"
         case .performance: "Performance"
         case .wallpapers: "Wallpapers"
         case .diagnostics: "Diagnostics"
@@ -53,6 +55,7 @@ enum PaneID: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .displays: "display"
         case .library: "photo.on.rectangle"
+        case .gallery: "photo.stack"
         case .performance: "speedometer"
         case .wallpapers: "square.stack.3d.up"
         case .diagnostics: "stethoscope"
