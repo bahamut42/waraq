@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Waraq - Live wallpapers for macOS">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Waraq (ورق) - Live wallpapers for macOS">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#1f2326"/>
@@ -24,19 +24,33 @@
     }
     .title {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
-      font-size: 128px;
+      font-size: 92px;
       font-weight: 800;
       fill: #f5ecd6;
-      letter-spacing: -5px;
+      letter-spacing: -4px;
       animation: fadeUp 1.2s ease-out;
+    }
+    .arabic {
+      font-family: "Geeza Pro", "SF Arabic", "Noto Naskh Arabic", -apple-system, system-ui, sans-serif;
+      font-size: 88px;
+      font-weight: 700;
+      fill: #c83a4a;
+      animation: fadeUp 1.4s ease-out;
+    }
+    .define {
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      font-size: 19px;
+      font-weight: 400;
+      fill: #b8b0a2;
+      animation: fadeUp 1.7s ease-out;
     }
     .tagline {
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
       font-size: 22px;
       font-weight: 400;
       fill: #9a948a;
-      letter-spacing: 0.5px;
-      animation: fadeUp 1.8s ease-out;
+      letter-spacing: 0.3px;
+      animation: fadeUp 2s ease-out;
     }
     .accent {
       stroke: #c83a4a;
@@ -50,18 +64,22 @@
       stroke: #f5ecd6;
       stroke-width: 2.5;
       fill: none;
-      opacity: 0.15;
+      opacity: 0.12;
       animation: chevronWave 4s ease-in-out infinite;
     }
   </style>
   <rect width="1200" height="320" fill="url(#bg)" rx="14"/>
   <!-- Subtle chevron pattern in upper right -->
   <g class="chevron">
-    <polyline points="920,60 950,40 980,60 1010,40 1040,60 1070,40 1100,60"/>
-    <polyline points="920,88 950,68 980,88 1010,68 1040,88 1070,68 1100,88"/>
-    <polyline points="920,116 950,96 980,116 1010,96 1040,116 1070,96 1100,116"/>
+    <polyline points="980,52 1010,34 1040,52 1070,34 1100,52 1130,34 1160,52"/>
+    <polyline points="980,78 1010,60 1040,78 1070,60 1100,78 1130,60 1160,78"/>
+    <polyline points="980,104 1010,86 1040,104 1070,86 1100,104 1130,86 1160,104"/>
   </g>
-  <text x="80" y="178" class="title">Waraq</text>
-  <line x1="86" y1="208" x2="280" y2="208" class="accent"/>
-  <text x="80" y="248" class="tagline">Live wallpapers for macOS. Free. Forever.</text>
+  <!-- Wordmark: Waraq + Arabic ورق -->
+  <text x="80" y="150" class="title">Waraq</text>
+  <text x="360" y="150" class="arabic" direction="rtl">ورق</text>
+  <line x1="86" y1="178" x2="300" y2="178" class="accent"/>
+  <!-- Dictionary gloss -->
+  <text x="80" y="224" class="define">waraq · noun · Arabic — paper; leaves; sheets (as in ورق الجدران, “wallpaper”)</text>
+  <text x="80" y="262" class="tagline">Live animated wallpapers for macOS. Free. Forever.</text>
 </svg>

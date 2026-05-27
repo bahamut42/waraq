@@ -13,6 +13,8 @@
   <img src="https://img.shields.io/badge/Swift-5.10%2B-orange.svg" alt="Swift 5.10+">
 </p>
 
+**Waraq** is a native macOS app that turns animated videos, GIFs, and procedural scenes into your desktop wallpaper — a different one on each display, GPU-accelerated, with a built-in gallery of thousands of free wallpapers. The name is the Arabic word for *paper* (ورق).
+
 Yes, there's already a thing called Wallpaper Engine. It's on Steam. It costs money. It doesn't run on Mac.
 
 Waraq does the Mac version. Free. GPL v3. Forever.
