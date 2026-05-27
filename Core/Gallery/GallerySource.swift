@@ -39,8 +39,8 @@ enum GallerySource: String, Codable, CaseIterable {
     /// source's own phase.
     var isImplemented: Bool {
         switch self {
-        case .pixabay, .pexels: true
-        case .coverr, .nasa: false
+        case .pixabay, .pexels, .coverr: true
+        case .nasa: false
         }
     }
 }

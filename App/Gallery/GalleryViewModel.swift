@@ -20,6 +20,7 @@ final class GalleryViewModel: ObservableObject {
     /// mirroring the Phase 9.7 dependency-injection pattern.
     private let pixabayClient = PixabayClient()
     private let pexelsClient = PexelsClient()
+    private let coverrClient = CoverrClient()
     private let downloader: GalleryDownloader
 
     init(library: WallpaperLibrary) {
@@ -88,7 +89,8 @@ final class GalleryViewModel: ObservableObject {
         switch source {
         case .pixabay: try await pixabayClient.search(query: query)
         case .pexels: try await pexelsClient.search(query: query)
-        case .coverr, .nasa: [] // stubs until 9.8c / 9.8d
+        case .coverr: try await coverrClient.search(query: query)
+        case .nasa: [] // stub until 9.8d
         }
     }
 

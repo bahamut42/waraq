@@ -82,8 +82,37 @@ final class GalleryTests: XCTestCase {
     func testGallerySourceImplementedFlag() {
         XCTAssertTrue(GallerySource.pixabay.isImplemented)
         XCTAssertTrue(GallerySource.pexels.isImplemented)
-        XCTAssertFalse(GallerySource.coverr.isImplemented)
+        XCTAssertTrue(GallerySource.coverr.isImplemented)
         XCTAssertFalse(GallerySource.nasa.isImplemented)
+    }
+
+    func testCoverrSourceMarkedImplemented() {
+        XCTAssertTrue(GallerySource.coverr.isImplemented)
+    }
+
+    func testCoverrCacheRoundTrip() throws {
+        let item = try GalleryItem(
+            id: "coverr-test-\(UUID().uuidString)",
+            source: .coverr,
+            title: "Test",
+            tags: ["nature"],
+            thumbnailURL: XCTUnwrap(URL(string: "https://example.com/t.jpg")),
+            previewVideoURL: XCTUnwrap(URL(string: "https://example.com/p.mp4")),
+            downloadVideoURL: XCTUnwrap(URL(string: "https://example.com/d.mp4")),
+            width: 1920, height: 1080, duration: 15,
+            attribution: GalleryAttribution(
+                creatorName: "Test",
+                creatorURL: nil,
+                sourceName: "Coverr",
+                sourceURL: XCTUnwrap(URL(string: "https://coverr.co/"))
+            ),
+            pageURL: XCTUnwrap(URL(string: "https://coverr.co/videos/abc"))
+        )
+        let query = "test-coverr-\(UUID().uuidString)"
+        GalleryCache.store([item], source: .coverr, query: query)
+        let fetched = GalleryCache.fetch(source: .coverr, query: query)
+        XCTAssertEqual(fetched?.first?.source, .coverr)
+        XCTAssertEqual(fetched?.first?.id, item.id)
     }
 
     private func makeTestItem(
