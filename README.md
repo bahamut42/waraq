@@ -85,6 +85,10 @@ Both methods install to `/Applications/Waraq.app` — pick whichever you prefer.
 
 Found a bug? [Open an issue.](https://github.com/bahamut42/waraq/issues)
 
+## Documentation
+
+For in-depth documentation (per-feature guides, multi-monitor setup, performance tuning, troubleshooting, privacy details, contributing, and the project roadmap), see the [Waraq Wiki](https://github.com/bahamut42/waraq/wiki).
+
 ## Quick tour
 
 ### Menu bar
