@@ -56,6 +56,8 @@ API keys for Pixabay and Pexels are yours, stored locally in your macOS UserDefa
 
 If you want zero network involvement: don't put API keys in. Use Waraq purely as a playback engine for files you bring yourself. Everything works the same.
 
+**Documentation site analytics.** The standalone install guide at [bahamut42.github.io/waraq/install/](https://bahamut42.github.io/waraq/install/) uses [GoatCounter](https://www.goatcounter.com) (privacy-friendly, no cookies, no personal data, respects Do Not Track) for aggregate visit counts. See the [wiki Privacy page](https://github.com/bahamut42/waraq/wiki/Privacy) for details. This does not affect the Waraq app itself, which remains zero-telemetry.
+
 ## Install
 
 <p align="center">
