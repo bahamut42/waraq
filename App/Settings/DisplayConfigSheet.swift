@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct DisplayConfigSheet: View {
@@ -128,9 +129,7 @@ struct DisplayConfigSheet: View {
     private func pickerCard(_ wallpaper: Wallpaper) -> some View {
         let isSelected = wallpaper.id == selectedID
         return VStack(alignment: .leading, spacing: 0) {
-            Rectangle()
-                .fill(thumbnailGradient(for: wallpaper))
-                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+            pickerThumbnail(wallpaper)
             VStack(alignment: .leading, spacing: 2) {
                 Text(wallpaper.name)
                     .font(.system(size: 11, weight: .medium))
@@ -154,6 +153,31 @@ struct DisplayConfigSheet: View {
                 )
         )
         .contentShape(Rectangle())
+    }
+
+    /// Shows the generated thumbnail image for video/GIF wallpapers
+    /// (falling back to a gradient while it generates or if missing).
+    /// Procedural/built-in wallpapers keep their gradient swatch.
+    @ViewBuilder
+    private func pickerThumbnail(_ wallpaper: Wallpaper) -> some View {
+        if library.hasAnyThumbnail(for: wallpaper),
+           let nsImage = NSImage(
+               contentsOf: library.displayThumbnailURL(for: wallpaper)
+           )
+        {
+            Color.clear
+                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+                .overlay(
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .scaledToFill()
+                )
+                .clipped()
+        } else {
+            Rectangle()
+                .fill(thumbnailGradient(for: wallpaper))
+                .aspectRatio(16.0 / 10.0, contentMode: .fit)
+        }
     }
 
     private func metaLine(for w: Wallpaper) -> String {

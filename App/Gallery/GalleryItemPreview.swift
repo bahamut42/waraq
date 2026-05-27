@@ -1,9 +1,15 @@
-import AVKit
 import SwiftUI
 
-/// Preview sheet shown when a tile is tapped. Plays the
-/// medium-quality video on loop, muted, and offers "Add to
-/// Library" (downloads the large quality + imports) or Cancel.
+/// Preview sheet shown when a tile is tapped. Shows a large static
+/// thumbnail of the video plus its metadata and attribution, and
+/// offers "Add to Library" (downloads the large quality + imports)
+/// or Cancel.
+///
+/// We intentionally show a still image rather than a live player:
+/// remote streaming via AVPlayerView rendered black on this
+/// macOS/SDK, and the SwiftUI VideoPlayer wrapper crashes outright
+/// (see the gallery preview crash fix). The wallpaper animates once
+/// it's applied to a display through the normal engine.
 struct GalleryItemPreview: View {
     let item: GalleryItem
     let isDownloading: Bool
@@ -11,20 +17,15 @@ struct GalleryItemPreview: View {
     let onAdd: () -> Void
     let onCancel: () -> Void
 
-    @State private var player: AVPlayer?
-    @State private var loopObserver: NSObjectProtocol?
-
     var body: some View {
         VStack(spacing: 0) {
             header
-            videoArea
+            previewArea
             metadata
             Divider()
             footer
         }
         .frame(width: 560, height: 480)
-        .onAppear(perform: startPlayback)
-        .onDisappear(perform: stopPlayback)
     }
 
     private var header: some View {
@@ -41,21 +42,45 @@ struct GalleryItemPreview: View {
         .padding(12)
     }
 
-    private var videoArea: some View {
-        Group {
-            if let player {
-                PlayerContainerView(player: player)
-            } else {
-                Rectangle()
-                    .fill(Color.black.opacity(0.85))
-                    .overlay(ProgressView().controlSize(.large))
+    private var previewArea: some View {
+        Color.black
+            .aspectRatio(16.0 / 9.0, contentMode: .fit)
+            .overlay(thumbnailImage)
+            .overlay(alignment: .bottomLeading) { motionHint }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 16)
+    }
+
+    private var thumbnailImage: some View {
+        AsyncImage(url: item.thumbnailURL) { phase in
+            switch phase {
+            case let .success(image):
+                image.resizable().scaledToFill()
+            case .failure:
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.white.opacity(0.7))
+            case .empty:
+                ProgressView().controlSize(.large)
+            @unknown default:
+                Color.black
             }
         }
-        .aspectRatio(16.0 / 9.0, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .padding(.horizontal, 16)
+        .clipped()
+    }
+
+    private var motionHint: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "play.circle.fill")
+            Text("Animates when set as wallpaper")
+        }
+        .font(.system(size: 10, weight: .medium))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.black.opacity(0.55), in: Capsule())
+        .padding(10)
     }
 
     private var metadata: some View {
@@ -102,52 +127,5 @@ struct GalleryItemPreview: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-    }
-
-    private func startPlayback() {
-        let avPlayer = AVPlayer(url: item.previewVideoURL)
-        avPlayer.isMuted = true
-        loopObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: avPlayer.currentItem,
-            queue: .main
-        ) { _ in
-            avPlayer.seek(to: .zero)
-            avPlayer.play()
-        }
-        player = avPlayer
-        avPlayer.play()
-    }
-
-    private func stopPlayback() {
-        player?.pause()
-        if let loopObserver {
-            NotificationCenter.default.removeObserver(loopObserver)
-        }
-        loopObserver = nil
-        player = nil
-    }
-}
-
-/// Wraps AppKit's `AVPlayerView` directly. We deliberately avoid
-/// SwiftUI's `VideoPlayer`: on this macOS/SDK combination, building
-/// it crashes inside `_AVKit_SwiftUI` generic-metadata
-/// instantiation (getSuperclassMetadata fatalError → SIGABRT).
-/// AVPlayerView is stable and lets us hide the transport controls.
-private struct PlayerContainerView: NSViewRepresentable {
-    let player: AVPlayer
-
-    func makeNSView(context _: Context) -> AVPlayerView {
-        let view = AVPlayerView()
-        view.player = player
-        view.controlsStyle = .none
-        view.videoGravity = .resizeAspect
-        return view
-    }
-
-    func updateNSView(_ nsView: AVPlayerView, context _: Context) {
-        if nsView.player !== player {
-            nsView.player = player
-        }
     }
 }
