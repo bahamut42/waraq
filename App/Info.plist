@@ -27,6 +27,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright (c) 2026 Omar A. Othman. MIT Licensed.</string>
+	<string>Copyright (C) 2026 Omar A. Othman. Licensed under GPL v3.</string>
 </dict>
 </plist>

@@ -39,7 +39,7 @@ Centered block, 32 pt top padding, 28 pt bottom padding.
 - Version line: "Version {version} (build {build}) · macOS 14.0+" at
   12 pt `secondaryLabelColor`, 4 pt top margin
 - Tagline: "A lightweight, native animated wallpaper engine for
-  macOS. Open source, MIT licensed." at 12 pt
+  macOS. Open source, GPL v3 licensed." at 12 pt
   `secondaryLabelColor`, 12 pt top margin, max 360 pt wide,
   line height 1.5
 
@@ -103,9 +103,9 @@ and trailing `arrow.up.right.square` at 13 pt `tertiaryLabelColor`.
 - Sublabel: "Waraq is free. Help keep it that way"
 - URL: https://paypal.me/OOthman666
 
-**Row 4: License (MIT)**
+**Row 4: License (GPL v3)**
 - Icon: `doc.text` 16 pt
-- Title: "License (MIT)"
+- Title: "License (GPL v3)"
 - No sublabel
 - URL: https://github.com/bahamut42/waraq/blob/main/LICENSE
 

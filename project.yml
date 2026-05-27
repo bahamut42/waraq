@@ -33,7 +33,7 @@ targets:
         CFBundleDisplayName: Waraq
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
-        NSHumanReadableCopyright: "Copyright (c) 2026 Omar A. Othman. MIT Licensed."
+        NSHumanReadableCopyright: "Copyright (C) 2026 Omar A. Othman. Licensed under GPL v3."
         NSHighResolutionCapable: true
         LSMinimumSystemVersion: "14.0"
     settings:

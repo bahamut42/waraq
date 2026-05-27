@@ -21,7 +21,7 @@
 --varattributes same-line
 
 --self remove
---header strip
+--header ignore
 --marktypes never
 --markextensions never
 --patternlet hoist

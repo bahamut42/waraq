@@ -1,3 +1,23 @@
+//  Waraq - A native macOS animated wallpaper app.
+//  Copyright (C) 2026 Omar A. Othman
+//
+//  This program is free software: you can redistribute it
+//  and/or modify it under the terms of the GNU General
+//  Public License as published by the Free Software
+//  Foundation, either version 3 of the License, or (at
+//  your option) any later version.
+//
+//  This program is distributed in the hope that it will
+//  be useful, but WITHOUT ANY WARRANTY; without even the
+//  implied warranty of MERCHANTABILITY or FITNESS FOR A
+//  PARTICULAR PURPOSE. See the GNU General Public License
+//  for more details.
+//
+//  You should have received a copy of the GNU General
+//  Public License along with this program. If not, see
+//  <https://www.gnu.org/licenses/>.
+//
+
 import AppKit
 import SwiftUI
 
@@ -80,12 +100,21 @@ struct AboutPane: View {
                 title: "Built by Bahamüt",
                 subtitle: "Omar A. Othman"
             )
-            linkCard(
-                icon: "doc.text.fill",
-                color: .gray,
-                title: "MIT License",
-                subtitle: "© 2026 Omar A. Othman"
-            )
+            Button {
+                if let url = URL(
+                    string: "https://www.gnu.org/licenses/gpl-3.0.html"
+                ) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                linkCard(
+                    icon: "doc.text.fill",
+                    color: .gray,
+                    title: "GPL v3 — Free & open source",
+                    subtitle: "© 2026 Omar A. Othman"
+                )
+            }
+            .buttonStyle(.plain)
             Button {
                 if let url = URL(string: "https://github.com/bahamut42/waraq") {
                     NSWorkspace.shared.open(url)
@@ -145,7 +174,7 @@ struct AboutPane: View {
                     "Defaults", "github.com/sindresorhus/Defaults"
                 )
             }
-            Text("All MIT licensed. Thank you to the maintainers.")
+            Text("All open source. Thank you to the maintainers.")
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 8)

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="100%" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Waraq - Live wallpapers for macOS">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1f2326"/>
+      <stop offset="100%" stop-color="#14171a"/>
+    </linearGradient>
+  </defs>
+  <style>
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes drawLine {
+      from { stroke-dashoffset: 200; }
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    @keyframes chevronWave {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(8px); }
+    }
+    .title {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+      font-size: 128px;
+      font-weight: 800;
+      fill: #f5ecd6;
+      letter-spacing: -5px;
+      animation: fadeUp 1.2s ease-out;
+    }
+    .tagline {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", system-ui, sans-serif;
+      font-size: 22px;
+      font-weight: 400;
+      fill: #9a948a;
+      letter-spacing: 0.5px;
+      animation: fadeUp 1.8s ease-out;
+    }
+    .accent {
+      stroke: #c83a4a;
+      stroke-width: 4;
+      fill: none;
+      stroke-linecap: round;
+      stroke-dasharray: 200;
+      animation: drawLine 1.5s ease-out forwards, pulse 3s ease-in-out 1.5s infinite;
+    }
+    .chevron {
+      stroke: #f5ecd6;
+      stroke-width: 2.5;
+      fill: none;
+      opacity: 0.15;
+      animation: chevronWave 4s ease-in-out infinite;
+    }
+  </style>
+  <rect width="1200" height="320" fill="url(#bg)" rx="14"/>
+  <!-- Subtle chevron pattern in upper right -->
+  <g class="chevron">
+    <polyline points="920,60 950,40 980,60 1010,40 1040,60 1070,40 1100,60"/>
+    <polyline points="920,88 950,68 980,88 1010,68 1040,88 1070,68 1100,88"/>
+    <polyline points="920,116 950,96 980,116 1010,96 1040,116 1070,96 1100,116"/>
+  </g>
+  <text x="80" y="178" class="title">Waraq</text>
+  <line x1="86" y1="208" x2="280" y2="208" class="accent"/>
+  <text x="80" y="248" class="tagline">Live wallpapers for macOS. Free. Forever.</text>
+</svg>
