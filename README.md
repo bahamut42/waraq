@@ -207,7 +207,29 @@ open Waraq.xcodeproj
 
 Build with Cmd+B. Run with Cmd+R. Tests with Cmd+U.
 
+Or build from the command line (matches what CI runs):
+
+```bash
+xcodebuild \
+  -project Waraq.xcodeproj \
+  -scheme Waraq \
+  -destination 'platform=macOS' \
+  -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+
+xcodebuild \
+  -project Waraq.xcodeproj \
+  -scheme Waraq \
+  -destination 'platform=macOS' \
+  -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO \
+  test
+```
+
 `Waraq.xcodeproj` is gitignored - it's generated from `project.yml`. If you pull changes that touch the project structure, re-run `xcodegen generate`.
+
+For deeper notes on architecture, conventions, and what not to touch when modifying the source, see [`CLAUDE.md`](CLAUDE.md).
 
 ## License
 
