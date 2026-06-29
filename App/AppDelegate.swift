@@ -57,6 +57,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    /// Rescue mechanism: if the user tries to open the app from Launchpad or Finder
+    /// while it's already running (and potentially hidden), restore the menu bar icon
+    /// and show the Settings window immediately.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // 1. Force the menu bar icon back to visible in UserDefaults
+        UserDefaults.standard.set(true, forKey: "showInMenuBar")
+        
+        // 2. Apply the visibility immediately
+        applyMenuBarVisibility()
+        
+        // 3. Programmatically force the SwiftUI Settings window to open
+        if #available(macOS 13.0, *) {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+        
+        // 4. Bring the app to the front so the user sees it
+        NSApp.activate(ignoringOtherApps: true)
+        
+        return true
+    }
+
     /// Reads `appAppearance` from AppStorage and applies it to NSApp.
     func applyAppearancePreference() {
         let raw = UserDefaults.standard.string(forKey: "appAppearance")
